@@ -1,0 +1,270 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  font-size: 18px;
+  --bg-primary: #f5f0e6;
+  --bg-secondary: #eee9df;
+  --bg-tertiary: #e6e0d5;
+  --border-color: #231f1c;
+  --border-light: #d8d2c6;
+  --text-primary: #231f1c;
+  --text-secondary: #5a544c;
+  --text-muted: #8c8375;
+  --accent-primary: #d54930;
+  --accent-secondary: #356b3e;
+  --status-success: #356b3e;
+  --status-error: #d54930;
+  --status-warning: #c2883a;
+  --status-info: #4a6b8c;
+
+  /* Typography */
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-mono: 'Space Mono', 'Courier New', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-sans) !important;
+  margin: 0;
+  padding: 0;
+}
+
+/* Blueprint overrides for editorial theme */
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.bp6-navbar {
+  background-color: var(--bg-primary) !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.bp6-navbar-heading {
+  font-family: var(--font-mono) !important;
+  font-weight: 700 !important;
+  font-size: 2rem !important;
+  color: var(--text-primary) !important;
+  letter-spacing: -0.02em;
+}
+
+/* App layout */
+.app-layout {
+  display: flex;
+  height: calc(100vh - 50px);
+  background-color: var(--bg-primary);
+}
+
+.sidebar {
+  width: 260px;
+  background-color: var(--bg-primary);
+  border-right: 1px solid var(--border-color);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  overflow-y: auto;
+}
+
+.main-content {
+  flex: 1;
+  padding: 1.5rem 2rem;
+  overflow-y: auto;
+  background-color: transparent;
+}
+
+/* Card styling */
+.bp6-card {
+  background-color: var(--bg-primary) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: 0 !important;
+  transition: border-color 0.2s !important;
+}
+
+.bp6-card:hover {
+  border-color: var(--border-color) !important;
+}
+
+/* Image grid */
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1.25rem;
+}
+
+.image-card {
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  padding: 0.75rem !important;
+  user-select: none;
+}
+
+.image-card-thumb-wrapper {
+  width: 100%;
+  aspect-ratio: 1;
+  background-color: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border-light);
+}
+
+.image-card-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-card-name {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+}
+
+.image-card-tags {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-light);
+}
+
+.pagination-text {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Detail dialog */
+.detail-dialog-img {
+  max-width: 100%;
+  max-height: 50vh;
+  object-fit: contain;
+  margin: 0 auto 1rem auto;
+  display: block;
+  border: 1px solid var(--border-light);
+  background-color: var(--bg-secondary);
+}
+
+.field-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+}
+
+.field-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.field-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.field-value {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.path-value {
+  word-break: break-all;
+}
+
+.prompt-card {
+  margin-bottom: 1rem;
+}
+
+.prompt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+/* Dark Theme - Nord Palette */
+body.theme-dark-nord {
+  --bg-primary: #2e3440;
+  --bg-secondary: #3b4252;
+  --bg-tertiary: #434c5e;
+  --border-color: #4c566a;
+  --border-light: #434c5e;
+  --text-primary: #eceff4;
+  --text-secondary: #e5e9f0;
+  --text-muted: #d8dee9;
+  --accent-primary: #88c0d0;
+  --accent-secondary: #a3be8c;
+  --status-success: #a3be8c;
+  --status-error: #bf616a;
+  --status-warning: #ebcb8b;
+  --status-info: #81a1c1;
+
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+body.theme-dark-nord .bp6-navbar {
+  background-color: var(--bg-primary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+body.theme-dark-nord .bp6-dialog {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+body.theme-dark-nord .bp6-dialog-header {
+  background-color: var(--bg-secondary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+body.theme-dark-nord .bp6-dialog-header .bp6-heading {
+  color: var(--text-primary) !important;
+}
+
+body.theme-dark-nord .bp6-button {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+body.theme-dark-nord .bp6-button.bp6-minimal {
+  background-color: transparent !important;
+}
+
+body.theme-dark-nord .bp6-input {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
