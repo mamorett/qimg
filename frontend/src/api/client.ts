@@ -30,8 +30,8 @@ export async function fetchImages(params: ImagesQuery): Promise<ImagesResponse> 
   return handleResponse<ImagesResponse>(res);
 }
 
-export async function fetchDirs(dir: string = '.'): Promise<DirsResponse> {
-  const query = new URLSearchParams({ dir });
+export async function fetchDirs(dir: string = '.', recursive: boolean = true): Promise<DirsResponse> {
+  const query = new URLSearchParams({ dir, recursive: recursive ? 'true' : 'false' });
   const res = await fetch(`/api/dirs?${query.toString()}`);
   return handleResponse<DirsResponse>(res);
 }

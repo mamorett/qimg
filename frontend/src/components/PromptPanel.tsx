@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Tabs, Tab, Card, Tag, Button, TextArea, NonIdealState, H5, Intent, Collapse } from '@blueprintjs/core';
+import { Tabs, Tab, Card, Tag, Button, TextArea, NonIdealState, H5, Intent, Collapse, ButtonGroup } from '@blueprintjs/core';
+import ReactMarkdown from 'react-markdown';
 import { PNGMetadata } from '../api/types';
 import { showToaster } from './Toast';
 
@@ -10,6 +11,7 @@ interface PromptPanelProps {
 export const PromptPanel: React.FC<PromptPanelProps> = ({ png }) => {
   const [selectedTab, setSelectedTab] = useState<'prompts' | 'raw'>('prompts');
   const [collapsedKeys, setCollapsedKeys] = useState<Record<string, boolean>>({});
+  const [viewModes, setViewModes] = useState<Record<number, 'markdown' | 'raw'>>({});
 
   const handleCopy = (text: string, label: string = 'Prompt') => {
     navigator.clipboard.writeText(text);
@@ -30,6 +32,10 @@ export const PromptPanel: React.FC<PromptPanelProps> = ({ png }) => {
     setCollapsedKeys((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const toggleViewMode = (idx: number, mode: 'markdown' | 'raw') => {
+    setViewModes((prev) => ({ ...prev, [idx]: mode }));
+  };
+
   const promptsTab = (
     <div style={{ paddingTop: '1rem' }}>
       {png.prompts && png.prompts.length > 0 ? (
@@ -45,42 +51,68 @@ export const PromptPanel: React.FC<PromptPanelProps> = ({ png }) => {
               />
             </div>
           )}
-          {png.prompts.map((prompt, idx) => (
-            <Card key={idx} className="prompt-card">
-              <div className="prompt-header">
-                <H5 style={{ margin: 0, fontSize: '0.95rem' }}>
-                  {prompt.title || prompt.nodeType || `Prompt ${idx + 1}`}
-                </H5>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  {prompt.source && (
-                    <Tag minimal>
-                      {prompt.source}
-                    </Tag>
-                  )}
-                  <Button
-                    minimal
-                    small
-                    icon="clipboard"
-                    text="Copy"
-                    onClick={() => handleCopy(prompt.text)}
-                  />
+          {png.prompts.map((prompt, idx) => {
+            const currentMode = viewModes[idx] || 'markdown';
+            const lineCount = prompt.text.split('\n').length;
+
+            return (
+              <Card key={idx} className="prompt-card" style={{ marginBottom: '1rem' }}>
+                <div className="prompt-header" style={{ marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <H5 style={{ margin: 0, fontSize: '0.95rem' }}>
+                    {prompt.title || prompt.nodeType || `Prompt ${idx + 1}`}
+                  </H5>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
+                    {prompt.source && (
+                      <Tag minimal>
+                        {prompt.source}
+                      </Tag>
+                    )}
+                    <ButtonGroup minimal>
+                      <Button
+                        small
+                        active={currentMode === 'markdown'}
+                        onClick={() => toggleViewMode(idx, 'markdown')}
+                        text="Markdown"
+                      />
+                      <Button
+                        small
+                        active={currentMode === 'raw'}
+                        onClick={() => toggleViewMode(idx, 'raw')}
+                        text="Raw"
+                      />
+                    </ButtonGroup>
+                    <Button
+                      minimal
+                      small
+                      icon="clipboard"
+                      text="Copy"
+                      onClick={() => handleCopy(prompt.text)}
+                    />
+                  </div>
                 </div>
-              </div>
-              <TextArea
-                fill
-                readOnly
-                rows={Math.min(10, Math.max(3, prompt.text.split('\n').length))}
-                value={prompt.text}
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.85rem',
-                  backgroundColor: 'var(--bg-secondary)',
-                  color: 'var(--text-primary)',
-                  resize: 'vertical',
-                }}
-              />
-            </Card>
-          ))}
+
+                {currentMode === 'markdown' ? (
+                  <div className="markdown-prompt-content">
+                    <ReactMarkdown>{prompt.text}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <TextArea
+                    fill
+                    readOnly
+                    rows={Math.max(3, lineCount)}
+                    value={prompt.text}
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.85rem',
+                      backgroundColor: 'var(--bg-secondary)',
+                      color: 'var(--text-primary)',
+                      resize: 'none',
+                    }}
+                  />
+                )}
+              </Card>
+            );
+          })}
         </>
       ) : (
         <NonIdealState
@@ -107,6 +139,7 @@ export const PromptPanel: React.FC<PromptPanelProps> = ({ png }) => {
         chunkKeys.map((key) => {
           const val = png.chunks[key];
           const isCollapsed = Boolean(collapsedKeys[key]);
+          const lineCount = val.split('\n').length;
           return (
             <Card key={key} style={{ marginBottom: '0.75rem', padding: '0.75rem' }}>
               <div
@@ -145,7 +178,7 @@ export const PromptPanel: React.FC<PromptPanelProps> = ({ png }) => {
                 <TextArea
                   fill
                   readOnly
-                  rows={Math.min(12, Math.max(3, val.split('\n').length))}
+                  rows={Math.max(3, lineCount)}
                   value={val}
                   style={{
                     marginTop: '0.5rem',
@@ -153,6 +186,7 @@ export const PromptPanel: React.FC<PromptPanelProps> = ({ png }) => {
                     fontSize: '0.8rem',
                     backgroundColor: 'var(--bg-secondary)',
                     color: 'var(--text-primary)',
+                    resize: 'none',
                   }}
                 />
               </Collapse>

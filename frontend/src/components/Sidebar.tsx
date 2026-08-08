@@ -1,5 +1,6 @@
-import React from 'react';
-import { H6, InputGroup, HTMLSelect, FormGroup, Tag, Button, Classes } from '@blueprintjs/core';
+import React, { useState } from 'react';
+import { H6, InputGroup, Tag, Icon, Spinner } from '@blueprintjs/core';
+import { useDirs } from '../hooks/useImages';
 import { UrlState } from '../hooks/useUrlState';
 
 interface SidebarProps {
@@ -7,112 +8,83 @@ interface SidebarProps {
   updateState: (updates: Partial<UrlState>) => void;
 }
 
-const SUPPORTED_EXTS = ['png', 'jpg', 'gif', 'webp', 'bmp'];
-
 export const Sidebar: React.FC<SidebarProps> = ({ state, updateState }) => {
-  const activeExts = state.ext ? state.ext.split(',').map((e) => e.trim().toLowerCase()) : [];
+  const { data: dirsData, isLoading, isError } = useDirs('.', true);
+  const [filterQuery, setFilterQuery] = useState('');
 
-  const toggleExt = (ext: string) => {
-    let nextExts: string[];
-    if (activeExts.includes(ext)) {
-      nextExts = activeExts.filter((e) => e !== ext);
-    } else {
-      nextExts = [...activeExts, ext];
-    }
-    updateState({ ext: nextExts.join(','), page: 1 });
-  };
+  const currentDir = state.dir || '.';
+  const dirs = dirsData?.dirs || [];
 
-  const handleReset = () => {
-    updateState({
-      q: '',
-      sort: 'name',
-      order: 'asc',
-      ext: '',
-      page: 1,
-      size: 60,
-    });
-  };
+  const filteredDirs = dirs.filter((d) => {
+    if (!filterQuery.trim()) return true;
+    return d.name.toLowerCase().includes(filterQuery.toLowerCase()) || d.path.toLowerCase().includes(filterQuery.toLowerCase());
+  });
 
   return (
     <aside className="sidebar">
-      <div>
-        <H6 style={{ marginBottom: '0.5rem' }}>Search</H6>
-        <InputGroup
-          leftIcon="search"
-          placeholder="Filter files..."
-          value={state.q || ''}
-          onChange={(e) => updateState({ q: e.target.value, page: 1 })}
-        />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+        <H6 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          Directories
+        </H6>
+        <Tag minimal style={{ fontSize: '0.7rem' }}>
+          {dirs.length}
+        </Tag>
       </div>
 
-      <FormGroup label="Sort By" labelFor="sort-select">
-        <HTMLSelect
-          id="sort-select"
-          fill
-          value={state.sort || 'name'}
-          onChange={(e) => updateState({ sort: e.target.value as UrlState['sort'], page: 1 })}
-          options={[
-            { label: 'File Name', value: 'name' },
-            { label: 'Date Modified', value: 'mtime' },
-            { label: 'File Size', value: 'size' },
-          ]}
-        />
-      </FormGroup>
-
-      <FormGroup label="Order" labelFor="order-select">
-        <HTMLSelect
-          id="order-select"
-          fill
-          value={state.order || 'asc'}
-          onChange={(e) => updateState({ order: e.target.value as UrlState['order'], page: 1 })}
-          options={[
-            { label: 'Ascending', value: 'asc' },
-            { label: 'Descending', value: 'desc' },
-          ]}
-        />
-      </FormGroup>
-
-      <FormGroup label="Formats">
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-          {SUPPORTED_EXTS.map((ext) => {
-            const isActive = activeExts.includes(ext);
-            return (
-              <Tag
-                key={ext}
-                interactive
-                intent={isActive ? 'primary' : 'none'}
-                minimal={!isActive}
-                onClick={() => toggleExt(ext)}
-                style={{ cursor: 'pointer', textTransform: 'uppercase' }}
-              >
-                .{ext}
-              </Tag>
-            );
-          })}
-        </div>
-      </FormGroup>
-
-      <FormGroup label="Page Size" labelFor="size-select">
-        <HTMLSelect
-          id="size-select"
-          fill
-          value={state.size || 60}
-          onChange={(e) => updateState({ size: Number(e.target.value), page: 1 })}
-          options={[
-            { label: '30 per page', value: '30' },
-            { label: '60 per page', value: '60' },
-            { label: '120 per page', value: '120' },
-          ]}
-        />
-      </FormGroup>
-
-      <Button
-        className={Classes.MINIMAL}
-        icon="reset"
-        text="Reset Filters"
-        onClick={handleReset}
-        style={{ marginTop: 'auto' }}
+      <InputGroup
+        leftIcon="filter"
+        placeholder="Filter folders..."
+        small
+        value={filterQuery}
+        onChange={(e) => setFilterQuery(e.target.value)}
+        style={{ marginBottom: '0.75rem' }}
       />
+
+      <div className="dir-tree-list">
+        {isLoading && (
+          <div style={{ padding: '1rem', textAlign: 'center' }}>
+            <Spinner size={24} />
+          </div>
+        )}
+
+        {isError && (
+          <div style={{ padding: '0.5rem', color: 'var(--status-error)', fontSize: '0.8rem' }}>
+            Failed to load directories.
+          </div>
+        )}
+
+        {!isLoading && filteredDirs.map((d) => {
+          const isActive = currentDir === d.path;
+          const depth = d.path === '.' ? 0 : d.path.split('/').length;
+          const indent = Math.min(depth * 12, 48);
+
+          return (
+            <div
+              key={d.path}
+              className={`dir-item ${isActive ? 'active' : ''}`}
+              style={{ paddingLeft: `${8 + indent}px` }}
+              onClick={() => updateState({ dir: d.path, page: 1 })}
+            >
+              <Icon
+                icon={isActive ? 'folder-open' : 'folder-close'}
+                size={14}
+                style={{
+                  marginRight: '6px',
+                  color: isActive ? 'var(--accent-primary)' : 'var(--text-muted)',
+                }}
+              />
+              <span className="dir-item-name" title={d.path}>
+                {d.path === '.' ? 'Root (.)' : d.name}
+              </span>
+              {d.imageCount > 0 && (
+                <span className="dir-item-count">
+                  {d.imageCount}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </aside>
   );
 };

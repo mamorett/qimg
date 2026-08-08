@@ -10,10 +10,10 @@ export function useImages(params: ImagesQuery) {
   });
 }
 
-export function useDirs(dir: string = '.') {
+export function useDirs(dir: string = '.', recursive: boolean = true) {
   return useQuery({
-    queryKey: ['dirs', dir],
-    queryFn: () => fetchDirs(dir),
+    queryKey: ['dirs', dir, recursive],
+    queryFn: () => fetchDirs(dir, recursive),
     staleTime: 30000,
   });
 }

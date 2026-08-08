@@ -47,8 +47,8 @@ function MainApp() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <AppNavbar
-        currentDir={state.dir || '.'}
-        onSelectDir={(dir) => updateState({ dir, page: 1 })}
+        state={state}
+        updateState={updateState}
         onRefresh={handleRefresh}
         onOpenAbout={() => setIsAboutOpen(true)}
         theme={theme}

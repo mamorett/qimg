@@ -7,6 +7,7 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io/fs"
 	"net/http"
 	"os"
 	"path"
@@ -186,6 +187,75 @@ func (s *Server) handleListImages(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListDirs(w http.ResponseWriter, r *http.Request) {
+	isRecursive := r.URL.Query().Get("recursive") == "true" || r.URL.Query().Get("tree") == "true"
+
+	if isRecursive {
+		var dirs []DirItem
+		dirImageCounts := make(map[string]int)
+
+		_ = filepath.WalkDir(s.config.Root, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if d.IsDir() {
+				if strings.HasPrefix(d.Name(), ".") && p != s.config.Root {
+					return filepath.SkipDir
+				}
+				if s.config.CacheDir != "" && p == s.config.CacheDir {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !strings.HasPrefix(d.Name(), ".") && isSupportedImage(filepath.Ext(d.Name())) {
+				parent := filepath.Dir(p)
+				relParent, err := filepath.Rel(s.config.Root, parent)
+				if err == nil {
+					relSlash := filepath.ToSlash(relParent)
+					dirImageCounts[relSlash]++
+				}
+			}
+			return nil
+		})
+
+		_ = filepath.WalkDir(s.config.Root, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if !d.IsDir() {
+				return nil
+			}
+			if strings.HasPrefix(d.Name(), ".") && p != s.config.Root {
+				return filepath.SkipDir
+			}
+			if s.config.CacheDir != "" && p == s.config.CacheDir {
+				return filepath.SkipDir
+			}
+
+			rel, err := filepath.Rel(s.config.Root, p)
+			if err != nil {
+				return nil
+			}
+			relSlash := filepath.ToSlash(rel)
+			name := d.Name()
+			if relSlash == "." {
+				name = "Root"
+			}
+			dirs = append(dirs, DirItem{
+				Path:       relSlash,
+				Name:       name,
+				ImageCount: dirImageCounts[relSlash],
+			})
+			return nil
+		})
+
+		if dirs == nil {
+			dirs = []DirItem{}
+		}
+
+		writeJSON(w, http.StatusOK, DirsResponse{Dirs: dirs})
+		return
+	}
+
 	dirParam := r.URL.Query().Get("dir")
 	if dirParam == "" {
 		dirParam = "."
