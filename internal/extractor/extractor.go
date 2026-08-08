@@ -63,7 +63,6 @@ func (e *PromptExtractor) ExtractComfyUI(filePath string, opts ...*ExtractionOpt
 		}
 		w = config.Width
 		h = config.Height
-		// Seek back to start for metadata reading
 		if _, err := f.Seek(0, 0); err != nil {
 			return nil, err
 		}
@@ -86,7 +85,7 @@ func (e *PromptExtractor) ExtractComfyUI(filePath string, opts ...*ExtractionOpt
 
 	processedNodes := make(map[any]bool)
 
-	// Try workflow first
+	// 1. Try visual workflow chunk first
 	if workflowJSON, ok := meta["workflow"]; ok {
 		var workflowData map[string]any
 		if err := json.Unmarshal([]byte(workflowJSON), &workflowData); err == nil {
@@ -95,18 +94,37 @@ func (e *PromptExtractor) ExtractComfyUI(filePath string, opts ...*ExtractionOpt
 		}
 	}
 
-	// Then prompt data if none found
+	// 2. Try prompt API graph chunk if no workflow prompts found
 	if len(result.PositivePrompts) == 0 {
 		if promptJSON, ok := meta["prompt"]; ok {
 			var promptData map[string]any
 			if err := json.Unmarshal([]byte(promptJSON), &promptData); err == nil {
-				// For prompt data, we need a map[string]bool for processed nodes
-				// but extractPositiveFromWorkflow uses map[any]bool.
-				// Let's make extractPositiveFromPromptData also use map[any]bool for consistency if possible,
-				// or just convert.
 				prompts := e.extractPositiveFromPromptData(promptData, processedNodes)
 				result.PositivePrompts = append(result.PositivePrompts, prompts...)
 			}
+		}
+	}
+
+	// 3. Fallback to parameters chunk (A1111 metadata) if no ComfyUI prompts found
+	if len(result.PositivePrompts) == 0 {
+		if promptText, ok := e.extractPositiveFromParametersStrict(meta); ok {
+			result.PositivePrompts = append(result.PositivePrompts, PromptInfo{
+				Text:     promptText,
+				NodeID:   "parameters",
+				NodeType: "parameters",
+				Title:    "Parameters",
+				Source:   "parameters",
+			})
+			result.ExtractionMethod = "parameters"
+		} else if promptText, ok := e.extractPositiveFromPNGProperties(meta); ok {
+			result.PositivePrompts = append(result.PositivePrompts, PromptInfo{
+				Text:     promptText,
+				NodeID:   "png_properties",
+				NodeType: "png_properties",
+				Title:    "PNG Properties",
+				Source:   "png_properties",
+			})
+			result.ExtractionMethod = "png_properties"
 		}
 	}
 
@@ -131,7 +149,6 @@ func (e *PromptExtractor) ExtractParameters(filePath string, opts ...*Extraction
 		}
 		w = config.Width
 		h = config.Height
-		// Seek back to start for metadata reading
 		if _, err := f.Seek(0, 0); err != nil {
 			return nil, err
 		}
@@ -152,7 +169,6 @@ func (e *PromptExtractor) ExtractParameters(filePath string, opts ...*Extraction
 		ExtractionMethod: "parameters",
 	}
 
-	// First, try the parameters extraction
 	if promptText, ok := e.extractPositiveFromParametersStrict(meta); ok {
 		result.PositivePrompts = append(result.PositivePrompts, PromptInfo{
 			Text:     promptText,
@@ -161,16 +177,31 @@ func (e *PromptExtractor) ExtractParameters(filePath string, opts ...*Extraction
 			Title:    "Parameters",
 			Source:   "parameters",
 		})
+	} else if promptText, ok := e.extractPositiveFromPNGProperties(meta); ok {
+		result.PositivePrompts = append(result.PositivePrompts, PromptInfo{
+			Text:     promptText,
+			NodeID:   "png_properties",
+			NodeType: "png_properties",
+			Title:    "PNG Properties",
+			Source:   "png_properties",
+		})
 	} else {
-		// If original method fails, try PNG properties as fallback
-		if promptText, ok := e.extractPositiveFromPNGProperties(meta); ok {
-			result.PositivePrompts = append(result.PositivePrompts, PromptInfo{
-				Text:     promptText,
-				NodeID:   "png_properties",
-				NodeType: "png_properties",
-				Title:    "PNG Properties",
-				Source:   "png_properties",
-			})
+		processedNodes := make(map[any]bool)
+		if workflowJSON, ok := meta["workflow"]; ok {
+			var workflowData map[string]any
+			if err := json.Unmarshal([]byte(workflowJSON), &workflowData); err == nil {
+				prompts := e.extractPositiveFromWorkflow(workflowData, processedNodes)
+				result.PositivePrompts = append(result.PositivePrompts, prompts...)
+			}
+		}
+		if len(result.PositivePrompts) == 0 {
+			if promptJSON, ok := meta["prompt"]; ok {
+				var promptData map[string]any
+				if err := json.Unmarshal([]byte(promptJSON), &promptData); err == nil {
+					prompts := e.extractPositiveFromPromptData(promptData, processedNodes)
+					result.PositivePrompts = append(result.PositivePrompts, prompts...)
+				}
+			}
 		}
 	}
 
@@ -198,22 +229,18 @@ func (e *PromptExtractor) ExtractJSON(filePath string) (*ExtractionResult, error
 
 	processedNodes := make(map[any]bool)
 
-	// Try as workflow (has 'nodes' list)
 	if _, ok := jsonData["nodes"]; ok {
 		prompts := e.extractPositiveFromWorkflow(jsonData, processedNodes)
 		result.PositivePrompts = append(result.PositivePrompts, prompts...)
 	}
 
-	// Try as API format
 	if len(result.PositivePrompts) == 0 {
 		isAPIFormat := false
 		for _, v := range jsonData {
 			if node, ok := v.(map[string]any); ok {
-				if _, ok := node["class_type"]; ok {
-					isAPIFormat = true
-					break
-				}
-				if _, ok := node["inputs"]; ok {
+				_, hasClass := node["class_type"]
+				_, hasInputs := node["inputs"]
+				if hasClass || hasInputs {
 					isAPIFormat = true
 					break
 				}
@@ -337,7 +364,8 @@ func (e *PromptExtractor) extractPositiveFromWorkflow(workflowData map[string]an
 			isNegative := strings.Contains(titleLower, "negative") ||
 				strings.Contains(titleLower, "neg") ||
 				promptTextTrimmed == "" ||
-				strings.HasPrefix(promptTextTrimmed, "negative")
+				strings.HasPrefix(promptTextTrimmed, "negative prompt") ||
+				strings.HasPrefix(promptTextTrimmed, "negative:")
 
 			if isPositive && !isNegative {
 				nodeTitle := title
@@ -359,43 +387,37 @@ func (e *PromptExtractor) extractPositiveFromWorkflow(workflowData map[string]an
 	return positivePrompts
 }
 
-func (e *PromptExtractor) extractPositiveFromPromptData(promptData map[string]any, processed map[any]bool) []PromptInfo {
-	var positivePrompts []PromptInfo
+// Helper to resolve node text by following link references in inputs [nodeID, slot]
+func (e *PromptExtractor) resolveNodeText(promptData map[string]any, node map[string]any, visited map[string]bool) string {
+	inputs, ok := node["inputs"].(map[string]any)
+	if !ok {
+		return ""
+	}
 
-	for key, v := range promptData {
-		value, ok := v.(map[string]any)
-		if !ok {
+	for _, key := range []string{"text", "prompt", "string", "value", "text_g", "text_l", "val"} {
+		valRaw, ok := inputs[key]
+		if !ok || valRaw == nil {
 			continue
 		}
 
-		classType, _ := value["class_type"].(string)
-
-		if processed[key] {
-			continue
-		}
-
-		if classType == "CLIPTextEncode" {
-			inputs, ok := value["inputs"].(map[string]any)
-			if !ok {
-				continue
+		switch v := valRaw.(type) {
+		case string:
+			trimmed := strings.TrimSpace(v)
+			if trimmed != "" {
+				return trimmed
 			}
-
-			var textContentRaw any
-			if t, ok := inputs["text"]; ok {
-				textContentRaw = t
-			} else if p, ok := inputs["prompt"]; ok {
-				textContentRaw = p
-			}
-
-			if textContentRaw == nil {
-				continue
-			}
-
-			textContent := ""
-			switch v := textContentRaw.(type) {
-			case string:
-				textContent = v
-			case []any:
+		case []any:
+			if len(v) == 2 { // Node link [nodeID, slotIdx]
+				linkedID := fmt.Sprintf("%v", v[0])
+				if !visited[linkedID] {
+					visited[linkedID] = true
+					if targetNode, ok := promptData[linkedID].(map[string]any); ok {
+						if res := e.resolveNodeText(promptData, targetNode, visited); res != "" {
+							return res
+						}
+					}
+				}
+			} else {
 				var sb strings.Builder
 				for i, item := range v {
 					if i > 0 {
@@ -403,24 +425,108 @@ func (e *PromptExtractor) extractPositiveFromPromptData(promptData map[string]an
 					}
 					sb.WriteString(fmt.Sprintf("%v", item))
 				}
-				textContent = sb.String()
-			default:
-				textContent = fmt.Sprintf("%v", v)
+				s := strings.TrimSpace(sb.String())
+				if s != "" {
+					return s
+				}
+			}
+		}
+	}
+
+	if widgetsRaw, ok := node["widgets_values"].([]any); ok && len(widgetsRaw) > 0 {
+		for _, w := range widgetsRaw {
+			if str, ok := w.(string); ok {
+				trimmed := strings.TrimSpace(str)
+				if trimmed != "" {
+					return trimmed
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+func (e *PromptExtractor) extractPositiveFromPromptData(promptData map[string]any, processed map[any]bool) []PromptInfo {
+	var positivePrompts []PromptInfo
+
+	posNodeIDs := make(map[string]bool)
+	negNodeIDs := make(map[string]bool)
+
+	// Scan KSampler nodes in API graph to find positive & negative inputs explicitly
+	for _, v := range promptData {
+		node, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		classType, _ := node["class_type"].(string)
+		if strings.Contains(strings.ToLower(classType), "sampler") {
+			inputs, ok := node["inputs"].(map[string]any)
+			if !ok {
+				continue
+			}
+			if pos, ok := inputs["positive"].([]any); ok && len(pos) > 0 {
+				posNodeIDs[fmt.Sprintf("%v", pos[0])] = true
+			}
+			if neg, ok := inputs["negative"].([]any); ok && len(neg) > 0 {
+				negNodeIDs[fmt.Sprintf("%v", neg[0])] = true
+			}
+		}
+	}
+
+	// 1. Process nodes connected to KSampler positive input pin
+	for keyStr := range posNodeIDs {
+		if node, ok := promptData[keyStr].(map[string]any); ok {
+			if processed[keyStr] {
+				continue
+			}
+			classType, _ := node["class_type"].(string)
+			text := e.resolveNodeText(promptData, node, map[string]bool{keyStr: true})
+			if text != "" {
+				positivePrompts = append(positivePrompts, PromptInfo{
+					Text:     text,
+					NodeID:   keyStr,
+					NodeType: classType,
+					Title:    fmt.Sprintf("Node %s", keyStr),
+					Source:   "prompt_data",
+				})
+				processed[keyStr] = true
+			}
+		}
+	}
+
+	// 2. Process remaining CLIPTextEncode nodes (excluding sampler negative nodes)
+	if len(positivePrompts) == 0 {
+		for key, v := range promptData {
+			keyStr := fmt.Sprintf("%v", key)
+			if processed[keyStr] || negNodeIDs[keyStr] {
+				continue
 			}
 
-			if strings.TrimSpace(textContent) != "" {
-				textContentLower := strings.ToLower(textContent)
-				isNegative := strings.Contains(textContentLower[:min(50, len(textContentLower))], "negative")
+			node, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
 
-				if !isNegative {
-					positivePrompts = append(positivePrompts, PromptInfo{
-						Text:     textContent,
-						NodeID:   fmt.Sprintf("%v", key),
-						NodeType: classType,
-						Title:    fmt.Sprintf("Node %v", key),
-						Source:   "prompt_data",
-					})
-					processed[key] = true
+			classType, _ := node["class_type"].(string)
+			if classType == "CLIPTextEncode" || strings.Contains(strings.ToLower(classType), "cliptext") {
+				text := e.resolveNodeText(promptData, node, map[string]bool{keyStr: true})
+				if text != "" {
+					textLower := strings.ToLower(text)
+					isNeg := strings.HasPrefix(textLower, "negative prompt") ||
+						strings.HasPrefix(textLower, "negative:") ||
+						strings.Contains(textLower[:min(50, len(textLower))], "negative prompt:")
+
+					if !isNeg {
+						positivePrompts = append(positivePrompts, PromptInfo{
+							Text:     text,
+							NodeID:   keyStr,
+							NodeType: classType,
+							Title:    fmt.Sprintf("Node %s", keyStr),
+							Source:   "prompt_data",
+						})
+						processed[keyStr] = true
+					}
 				}
 			}
 		}
@@ -435,28 +541,75 @@ func (e *PromptExtractor) extractPositiveFromPNGProperties(meta map[string]strin
 		"positive prompt",
 		"Positive Prompt",
 		"positive_prompt",
+		"prompt",
+		"Prompt",
+		"Description",
+		"description",
+		"Comment",
+		"comment",
+		"user_comment",
+		"UserComment",
 	}
 
 	for _, key := range possibleKeys {
-		if val, ok := meta[key]; ok {
-			val = strings.TrimSpace(val)
-			if val != "" {
-				if (strings.HasPrefix(val, "\"") && strings.HasSuffix(val, "\"")) ||
-					(strings.HasPrefix(val, "'") && strings.HasSuffix(val, "'")) {
-					val = val[1 : len(val)-1]
+		for k, val := range meta {
+			if strings.EqualFold(k, key) {
+				val = strings.TrimSpace(val)
+				val = strings.Trim(val, "\x00\r")
+				if val != "" {
+					if (strings.HasPrefix(val, "\"") && strings.HasSuffix(val, "\"")) ||
+						(strings.HasPrefix(val, "'") && strings.HasSuffix(val, "'")) {
+						val = val[1 : len(val)-1]
+					}
+					return val, true
 				}
-				return val, true
 			}
 		}
 	}
 	return "", false
 }
 
+func isDelimiterLine(line string) bool {
+	l := strings.ToLower(strings.TrimSpace(line))
+	if l == "" {
+		return false
+	}
+	if strings.HasPrefix(l, "negative prompt") || strings.HasPrefix(l, "negative:") || strings.HasPrefix(l, "steps:") {
+		return true
+	}
+	if strings.HasPrefix(l, "ti hashes:") || strings.HasPrefix(l, "lora hashes:") || strings.HasPrefix(l, "hashes:") || strings.HasPrefix(l, "version:") || strings.HasPrefix(l, "template:") {
+		return true
+	}
+	if strings.Contains(l, "steps:") && (strings.Contains(l, "sampler:") || strings.Contains(l, "cfg scale:") || strings.Contains(l, "seed:")) {
+		return true
+	}
+	return false
+}
+
 func (e *PromptExtractor) extractPositiveFromParametersStrict(meta map[string]string) (string, bool) {
-	params, ok := meta["parameters"]
-	if !ok {
+	var params string
+	var found bool
+	for k, v := range meta {
+		if strings.EqualFold(k, "parameters") {
+			params = v
+			found = true
+			break
+		}
+	}
+	if !found {
+		for k, v := range meta {
+			if strings.EqualFold(k, "prompt") || strings.EqualFold(k, "description") || strings.EqualFold(k, "comment") {
+				params = v
+				found = true
+				break
+			}
+		}
+	}
+	if !found || strings.TrimSpace(params) == "" {
 		return "", false
 	}
+
+	params = strings.Trim(params, "\x00\r")
 
 	// Try JSON first
 	var parsed map[string]any
@@ -466,8 +619,12 @@ func (e *PromptExtractor) extractPositiveFromParametersStrict(meta map[string]st
 			"positive prompt",
 			"Positive Prompt",
 			"positive_prompt",
+			"positive",
+			"Positive",
 			"prompt",
 			"Prompt",
+			"text",
+			"Text",
 		}
 		for _, key := range possibleKeys {
 			if v, ok := parsed[key]; ok {
@@ -481,13 +638,22 @@ func (e *PromptExtractor) extractPositiveFromParametersStrict(meta map[string]st
 					}
 					return sb.String(), true
 				}
-				return fmt.Sprintf("%v", v), true
+				if strVal := fmt.Sprintf("%v", v); strings.TrimSpace(strVal) != "" {
+					return strVal, true
+				}
 			}
 		}
 	}
 
-	// Parse text format
+	// salvatore_image.py logic: prefix "Positive prompt: " if missing and not JSON
+	paramsLower := strings.ToLower(strings.TrimSpace(params))
+	if !strings.HasPrefix(paramsLower, "positive prompt:") && !strings.HasPrefix(paramsLower, "{") {
+		params = "Positive prompt: " + params
+	}
+
+	// Parse text format (Automatic1111)
 	lines := strings.Split(params, "\n")
+
 	for i, line := range lines {
 		lineTrimmedLower := strings.ToLower(strings.TrimSpace(line))
 		if strings.HasPrefix(lineTrimmedLower, "positive prompt:") {
@@ -497,7 +663,7 @@ func (e *PromptExtractor) extractPositiveFromParametersStrict(meta map[string]st
 				promptText = strings.TrimSpace(parts[1])
 			}
 
-			promptLines := []string{}
+			var promptLines []string
 			if promptText != "" {
 				promptLines = append(promptLines, promptText)
 			}
@@ -505,34 +671,32 @@ func (e *PromptExtractor) extractPositiveFromParametersStrict(meta map[string]st
 			j := i + 1
 			for j < len(lines) {
 				nextLine := lines[j]
-				nl := strings.ToLower(strings.TrimSpace(nextLine))
-				if strings.Contains(nl, ":") {
-					foundParam := false
-					for _, param := range []string{"negative prompt", "steps", "sampler", "cfg scale", "seed", "size", "model", "clip skip"} {
-						if strings.Contains(nl, param) {
-							foundParam = true
-							break
-						}
-					}
-					if foundParam {
-						break
-					}
+				if isDelimiterLine(nextLine) {
+					break
 				}
 				promptLines = append(promptLines, strings.TrimRight(nextLine, "\r\n"))
 				j++
 			}
 
-			fullPrompt := strings.TrimRight(strings.Join(promptLines, "\n"), "\n\r ")
-			outLines := strings.Split(fullPrompt, "\n")
-			k := 0
-			for k < len(outLines) && strings.TrimSpace(outLines[k]) == "" {
-				k++
+			fullPrompt := strings.TrimSpace(strings.Join(promptLines, "\n"))
+			if fullPrompt != "" {
+				return fullPrompt, true
 			}
-			if k < len(outLines) {
-				return strings.Join(outLines[k:], "\n"), true
-			}
-			return "", false
 		}
+	}
+
+	// Fallback without header
+	var promptLines []string
+	for _, line := range lines {
+		if isDelimiterLine(line) {
+			break
+		}
+		promptLines = append(promptLines, strings.TrimRight(line, "\r\n"))
+	}
+
+	fullPrompt := strings.TrimSpace(strings.Join(promptLines, "\n"))
+	if fullPrompt != "" {
+		return fullPrompt, true
 	}
 
 	return "", false
