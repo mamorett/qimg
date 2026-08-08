@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Spinner, NonIdealState, Button } from '@blueprintjs/core';
 import { useImages } from '../hooks/useImages';
 import { UrlState } from '../hooks/useUrlState';
@@ -12,6 +12,19 @@ interface ImageGridProps {
 
 export const ImageGrid: React.FC<ImageGridProps> = ({ state, updateState, onSelectImage }) => {
   const { data, isLoading, isError, error, refetch } = useImages(state);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isFirstMount = useRef(true);
+
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    const mainEl = containerRef.current?.closest('.main-content') || document.querySelector('.main-content');
+    if (mainEl) {
+      mainEl.scrollTop = 0;
+    }
+  }, [state.page, state.dir, state.q, state.sort, state.order, state.size, state.ext]);
 
   if (isLoading) {
     return (
@@ -57,7 +70,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({ state, updateState, onSele
   const currentPage = data.page;
 
   return (
-    <div>
+    <div ref={containerRef}>
       <div className="image-grid">
         {data.items.map((img) => (
           <ImageCard

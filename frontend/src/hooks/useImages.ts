@@ -1,12 +1,16 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { fetchImages, fetchDirs, fetchMetadata, fetchVersion } from '../api/client';
 import { ImagesQuery } from '../api/types';
 
 export function useImages(params: ImagesQuery) {
+  const { dir, sort, order, q, ext, page, size } = params;
+  const gridParams: ImagesQuery = { dir, sort, order, q, ext, page, size };
+
   return useQuery({
-    queryKey: ['images', params],
-    queryFn: () => fetchImages(params),
+    queryKey: ['images', gridParams],
+    queryFn: () => fetchImages(gridParams),
     staleTime: 30000,
+    placeholderData: keepPreviousData,
   });
 }
 

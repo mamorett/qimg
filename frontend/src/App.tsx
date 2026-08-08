@@ -22,9 +22,9 @@ function MainApp() {
 
   useEffect(() => {
     if (theme === 'dark-nord') {
-      document.body.classList.add('theme-dark-nord');
+      document.body.classList.add('theme-dark-nord', 'bp6-dark');
     } else {
-      document.body.classList.remove('theme-dark-nord');
+      document.body.classList.remove('theme-dark-nord', 'bp6-dark');
     }
     localStorage.setItem('qimg-theme', theme);
   }, [theme]);
