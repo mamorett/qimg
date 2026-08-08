@@ -85,7 +85,20 @@ func (e *PromptExtractor) ExtractComfyUI(filePath string, opts ...*ExtractionOpt
 
 	processedNodes := make(map[any]bool)
 
-	// 1. Try visual workflow chunk first
+	// 1. Try A1111/Krea parameters chunk first (salvatore_image.py approach)
+	if promptText, ok := e.extractPositiveFromParametersStrict(meta); ok {
+		result.PositivePrompts = append(result.PositivePrompts, PromptInfo{
+			Text:     promptText,
+			NodeID:   "parameters",
+			NodeType: "parameters",
+			Title:    "Parameters",
+			Source:   "parameters",
+		})
+		result.ExtractionMethod = "parameters"
+		return result, nil
+	}
+
+	// 2. Try visual workflow chunk
 	if workflowJSON, ok := meta["workflow"]; ok {
 		var workflowData map[string]any
 		if err := json.Unmarshal([]byte(workflowJSON), &workflowData); err == nil {
@@ -94,7 +107,7 @@ func (e *PromptExtractor) ExtractComfyUI(filePath string, opts ...*ExtractionOpt
 		}
 	}
 
-	// 2. Try prompt API graph chunk if no workflow prompts found
+	// 3. Try prompt API graph chunk if no prompts found yet
 	if len(result.PositivePrompts) == 0 {
 		if promptJSON, ok := meta["prompt"]; ok {
 			var promptData map[string]any
@@ -105,18 +118,9 @@ func (e *PromptExtractor) ExtractComfyUI(filePath string, opts ...*ExtractionOpt
 		}
 	}
 
-	// 3. Fallback to parameters chunk (A1111 metadata) if no ComfyUI prompts found
+	// 4. Fallback to PNG properties
 	if len(result.PositivePrompts) == 0 {
-		if promptText, ok := e.extractPositiveFromParametersStrict(meta); ok {
-			result.PositivePrompts = append(result.PositivePrompts, PromptInfo{
-				Text:     promptText,
-				NodeID:   "parameters",
-				NodeType: "parameters",
-				Title:    "Parameters",
-				Source:   "parameters",
-			})
-			result.ExtractionMethod = "parameters"
-		} else if promptText, ok := e.extractPositiveFromPNGProperties(meta); ok {
+		if promptText, ok := e.extractPositiveFromPNGProperties(meta); ok {
 			result.PositivePrompts = append(result.PositivePrompts, PromptInfo{
 				Text:     promptText,
 				NodeID:   "png_properties",
@@ -359,7 +363,11 @@ func (e *PromptExtractor) extractPositiveFromWorkflow(workflowData map[string]an
 
 			isPositive := strings.Contains(titleLower, "positive") ||
 				strings.Contains(titleLower, "pos") ||
-				((title == "" || titleLower == "untitled") && promptTextTrimmed != "" && !strings.Contains(promptTextLower[:min(50, len(promptTextLower))], "negative"))
+				((title == "" || titleLower == "untitled") && promptTextTrimmed != "" &&
+					!strings.Contains(promptTextLower[:min(50, len(promptTextLower))], "negative") &&
+					!strings.Contains(promptTextLower, "blurry") &&
+					!strings.Contains(promptTextLower, "watermark") &&
+					!strings.Contains(promptTextLower, "low quality"))
 
 			isNegative := strings.Contains(titleLower, "negative") ||
 				strings.Contains(titleLower, "neg") ||
@@ -614,6 +622,17 @@ func (e *PromptExtractor) extractPositiveFromParametersStrict(meta map[string]st
 	// Try JSON first
 	var parsed map[string]any
 	if err := json.Unmarshal([]byte(params), &parsed); err == nil {
+		// If JSON is a ComfyUI prompt API graph (containing node objects with class_type/inputs), skip parameters extraction
+		for _, v := range parsed {
+			if node, ok := v.(map[string]any); ok {
+				_, hasClass := node["class_type"]
+				_, hasInputs := node["inputs"]
+				if hasClass || hasInputs {
+					return "", false
+				}
+			}
+		}
+
 		possibleKeys := []string{
 			"Positive prompt",
 			"positive prompt",

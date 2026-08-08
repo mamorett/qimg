@@ -5,6 +5,8 @@ import (
 	"hash/crc32"
 	"os"
 	"testing"
+
+	"github.com/mamorett/qimg/internal/png"
 )
 
 var (
@@ -258,6 +260,40 @@ func TestExtractMultiLineA1111Parameters(t *testing.T) {
 	}
 	if resultComfy.PositivePrompts[0].Text != expected {
 		t.Errorf("expected:\n%s\ngot:\n%s", expected, resultComfy.PositivePrompts[0].Text)
+	}
+}
+
+func TestSpecificKreaImage(t *testing.T) {
+	path := "/gorgon/ia/qimg/krea2-2026-07-31-113859_-1.png"
+	if _, err := os.Stat(path); err != nil {
+		t.Skip("sample image not found")
+	}
+
+	chunks, err := png.ReadTextChunks(path)
+	if err != nil {
+		t.Fatalf("failed to read text chunks: %v", err)
+	}
+
+	t.Logf("=== CHUNKS IN KREA IMAGE ===")
+	for k, v := range chunks {
+		t.Logf("Chunk Key: %s | Length: %d", k, len(v))
+		if len(v) < 500 {
+			t.Logf("Chunk Value: %s", v)
+		} else {
+			t.Logf("Chunk Value (first 300): %s", v[:300])
+		}
+	}
+
+	e := &PromptExtractor{}
+	resComfy, errComfy := e.ExtractComfyUI(path)
+	if errComfy != nil {
+		t.Fatalf("ExtractComfyUI error: %v", errComfy)
+	}
+
+	t.Logf("=== EXTRACT COMFYUI RESULT ===")
+	t.Logf("Extraction Method: %s", resComfy.ExtractionMethod)
+	for i, p := range resComfy.PositivePrompts {
+		t.Logf("Prompt %d: Title=%s NodeID=%s Source=%s Text=\n%s", i, p.Title, p.NodeID, p.Source, p.Text)
 	}
 }
 
