@@ -1,6 +1,6 @@
 # qimg
-
 <p align="center">
+  <img src="logo.png" alt="QQuestio Logo" width="500" />
   <b>A fast, lightweight web-based image & media browser featuring S3 object storage support, MP4 playback, continuous infinite scroll, dynamic thumbnail fitting, and ComfyUI / Automatic1111 PNG metadata extraction.</b>
 </p>
 
