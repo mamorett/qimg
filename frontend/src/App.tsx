@@ -20,6 +20,16 @@ function MainApp() {
     return (localStorage.getItem('qimg-theme') as 'editorial' | 'dark-nord') || 'editorial';
   });
 
+  const [cardSize, setCardSize] = useState<number>(() => {
+    const saved = localStorage.getItem('qimg-card-size');
+    return saved ? Number(saved) : 200;
+  });
+
+  const [fitMode, setFitMode] = useState<'contain' | 'cover'>(() => {
+    const saved = localStorage.getItem('qimg-fit-mode');
+    return (saved as 'contain' | 'cover') || 'contain';
+  });
+
   useEffect(() => {
     if (theme === 'dark-nord') {
       document.body.classList.add('theme-dark-nord', 'bp6-dark');
@@ -28,6 +38,16 @@ function MainApp() {
     }
     localStorage.setItem('qimg-theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--card-min-width', `${cardSize}px`);
+    localStorage.setItem('qimg-card-size', cardSize.toString());
+  }, [cardSize]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--thumb-object-fit', fitMode);
+    localStorage.setItem('qimg-fit-mode', fitMode);
+  }, [fitMode]);
 
   const handleRefresh = () => {
     qc.invalidateQueries({ queryKey: ['images'] });
@@ -44,6 +64,10 @@ function MainApp() {
     setTheme((prev) => (prev === 'dark-nord' ? 'editorial' : 'dark-nord'));
   };
 
+  const toggleFitMode = () => {
+    setFitMode((prev) => (prev === 'contain' ? 'cover' : 'contain'));
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <AppNavbar
@@ -53,6 +77,10 @@ function MainApp() {
         onOpenAbout={() => setIsAboutOpen(true)}
         theme={theme}
         onToggleTheme={toggleTheme}
+        cardSize={cardSize}
+        onCardSizeChange={setCardSize}
+        fitMode={fitMode}
+        onToggleFitMode={toggleFitMode}
       />
 
       <div className="app-layout">

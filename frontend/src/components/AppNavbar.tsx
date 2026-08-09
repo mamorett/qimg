@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navbar, NavbarGroup, Alignment, Button, Classes, InputGroup, HTMLSelect } from '@blueprintjs/core';
+import { Navbar, NavbarGroup, Alignment, Button, Classes, InputGroup, HTMLSelect, Popover, Slider, Tooltip } from '@blueprintjs/core';
 import { UrlState } from '../hooks/useUrlState';
 
 interface AppNavbarProps {
@@ -9,6 +9,10 @@ interface AppNavbarProps {
   onOpenAbout: () => void;
   theme: 'editorial' | 'dark-nord';
   onToggleTheme: () => void;
+  cardSize: number;
+  onCardSizeChange: (size: number) => void;
+  fitMode: 'contain' | 'cover';
+  onToggleFitMode: () => void;
 }
 
 export const AppNavbar: React.FC<AppNavbarProps> = ({
@@ -18,6 +22,10 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
   onOpenAbout,
   theme,
   onToggleTheme,
+  cardSize,
+  onCardSizeChange,
+  fitMode,
+  onToggleFitMode,
 }) => {
   return (
     <Navbar className={`app-top-navbar ${theme === 'dark-nord' ? 'theme-dark-nord' : ''}`}>
@@ -65,7 +73,57 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
         />
       </NavbarGroup>
 
-      <NavbarGroup align={Alignment.RIGHT}>
+      <NavbarGroup align={Alignment.RIGHT} style={{ gap: '0.35rem' }}>
+        {/* Fit vs Crop Toggle */}
+        <Tooltip content={fitMode === 'contain' ? 'Display full image (no cropping)' : 'Crop image to fill square box'}>
+          <Button
+            className={Classes.MINIMAL}
+            small
+            icon={fitMode === 'contain' ? 'maximize' : 'grid'}
+            text={fitMode === 'contain' ? 'Fit' : 'Crop'}
+            onClick={onToggleFitMode}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
+          />
+        </Tooltip>
+
+        {/* Thumbnail Size Popover */}
+        <Popover
+          content={
+            <div style={{ padding: '1rem', width: '220px', backgroundColor: 'var(--bg-primary)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                <span>Thumbnail Size</span>
+                <b>{cardSize}px</b>
+              </div>
+              <Slider
+                min={120}
+                max={360}
+                stepSize={10}
+                value={cardSize}
+                onChange={onCardSizeChange}
+                labelRenderer={false}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.75rem', gap: '0.5rem' }}>
+                <Button small minimal text="S" onClick={() => onCardSizeChange(140)} />
+                <Button small minimal text="M" onClick={() => onCardSizeChange(200)} />
+                <Button small minimal text="L" onClick={() => onCardSizeChange(300)} />
+              </div>
+            </div>
+          }
+          position="bottom"
+        >
+          <Tooltip content="Adjust thumbnail size">
+            <Button
+              className={Classes.MINIMAL}
+              small
+              icon="zoom-in"
+              text={`${cardSize}px`}
+              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
+            />
+          </Tooltip>
+        </Popover>
+
+        <Navbar.Divider />
+
         <Button
           className={Classes.MINIMAL}
           small
