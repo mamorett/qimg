@@ -66,12 +66,14 @@ export const DetailDialog: React.FC<DetailDialogProps> = ({ filePath, onClose })
 
   const chunkKeys = Object.keys(data?.png?.chunks || {});
 
+  const isVideo = filePath ? filePath.toLowerCase().endsWith('.mp4') : false;
+
   return (
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
       title={fileName || 'Image Details'}
-      icon="media"
+      icon={isVideo ? 'video' : 'media'}
       style={{ width: '95%', maxWidth: '1200px', backgroundColor: 'var(--bg-primary)' }}
     >
       <div className={Classes.DIALOG_BODY} style={{ color: 'var(--text-primary)', textAlign: 'left', overflowY: 'auto', maxHeight: '80vh' }}>
@@ -91,12 +93,14 @@ export const DetailDialog: React.FC<DetailDialogProps> = ({ filePath, onClose })
 
         {data && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-            {/* Left Column: Image Preview & Image Properties */}
+            {/* Left Column: Media Preview & Properties */}
             <div style={{ textAlign: 'left' }}>
-              <a href={fullImgUrl} target="_blank" rel="noreferrer" title="Click to view full resolution">
-                <img
+              {isVideo ? (
+                <video
                   src={fullImgUrl}
-                  alt={fileName}
+                  controls
+                  autoPlay
+                  loop
                   className="detail-dialog-img"
                   style={{
                     maxWidth: '100%',
@@ -109,10 +113,28 @@ export const DetailDialog: React.FC<DetailDialogProps> = ({ filePath, onClose })
                     backgroundColor: 'var(--bg-secondary)',
                   }}
                 />
-              </a>
+              ) : (
+                <a href={fullImgUrl} target="_blank" rel="noreferrer" title="Click to view full resolution">
+                  <img
+                    src={fullImgUrl}
+                    alt={fileName}
+                    className="detail-dialog-img"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '450px',
+                      objectFit: 'contain',
+                      display: 'block',
+                      margin: '0 auto',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-light)',
+                      backgroundColor: 'var(--bg-secondary)',
+                    }}
+                  />
+                </a>
+              )}
 
               <H5 style={{ color: 'var(--accent-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginTop: '1.5rem', textAlign: 'left' }}>
-                Image Properties
+                {isVideo ? 'Video Properties' : 'Image Properties'}
               </H5>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: '4px' }}>

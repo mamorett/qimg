@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navbar, NavbarGroup, Alignment, Button, Classes, InputGroup, HTMLSelect, Tag } from '@blueprintjs/core';
+import { Navbar, NavbarGroup, Alignment, Button, Classes, InputGroup, HTMLSelect } from '@blueprintjs/core';
 import { UrlState } from '../hooks/useUrlState';
 
 interface AppNavbarProps {
@@ -11,8 +11,6 @@ interface AppNavbarProps {
   onToggleTheme: () => void;
 }
 
-const SUPPORTED_EXTS = ['png', 'jpg', 'gif', 'webp', 'bmp'];
-
 export const AppNavbar: React.FC<AppNavbarProps> = ({
   state,
   updateState,
@@ -21,18 +19,6 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
   theme,
   onToggleTheme,
 }) => {
-  const activeExts = state.ext ? state.ext.split(',').map((e) => e.trim().toLowerCase()) : [];
-
-  const toggleExt = (ext: string) => {
-    let nextExts: string[];
-    if (activeExts.includes(ext)) {
-      nextExts = activeExts.filter((e) => e !== ext);
-    } else {
-      nextExts = [...activeExts, ext];
-    }
-    updateState({ ext: nextExts.join(','), page: 1 });
-  };
-
   return (
     <Navbar className={`app-top-navbar ${theme === 'dark-nord' ? 'theme-dark-nord' : ''}`}>
       <NavbarGroup align={Alignment.LEFT} style={{ gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -45,7 +31,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
         {/* Search Input */}
         <InputGroup
           leftIcon="search"
-          placeholder="Search images..."
+          placeholder="Search files..."
           small
           value={state.q || ''}
           onChange={(e) => updateState({ q: e.target.value, page: 1 })}
@@ -77,40 +63,6 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
             { label: 'Desc ↘', value: 'desc' },
           ]}
         />
-
-        {/* Extension filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          {SUPPORTED_EXTS.map((ext) => {
-            const isActive = activeExts.includes(ext);
-            return (
-              <Tag
-                key={ext}
-                interactive
-                intent={isActive ? 'primary' : 'none'}
-                minimal={!isActive}
-                onClick={() => toggleExt(ext)}
-                style={{ cursor: 'pointer', textTransform: 'uppercase', fontSize: '0.65rem', padding: '2px 6px' }}
-              >
-                .{ext}
-              </Tag>
-            );
-          })}
-        </div>
-
-        {/* Page Size */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Per page:</span>
-          <HTMLSelect
-            minimal
-            value={state.size || 60}
-            onChange={(e) => updateState({ size: Number(e.target.value), page: 1 })}
-            options={[
-              { label: '30', value: '30' },
-              { label: '60', value: '60' },
-              { label: '120', value: '120' },
-            ]}
-          />
-        </div>
       </NavbarGroup>
 
       <NavbarGroup align={Alignment.RIGHT}>

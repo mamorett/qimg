@@ -18,13 +18,24 @@ export function formatBytes(bytes: number): string {
 export const ImageCard: React.FC<ImageCardProps> = ({ image, onClick }) => {
   const [hasError, setHasError] = useState(false);
 
-  // Helper to split relative path safely for image route
+  const isVideo = image.ext.toLowerCase() === '.mp4';
+  const fullUrl = `/img/full/${image.path.split('/').map(encodeURIComponent).join('/')}`;
   const thumbUrl = `/img/thumb/${image.path.split('/').map(encodeURIComponent).join('/')}`;
 
   return (
     <Card interactive onClick={onClick} className="image-card">
-      <div className="image-card-thumb-wrapper">
-        {hasError ? (
+      <div className="image-card-thumb-wrapper" style={{ position: 'relative' }}>
+        {isVideo ? (
+          <video
+            className="image-card-thumb"
+            src={fullUrl}
+            muted
+            loop
+            autoPlay
+            playsInline
+            preload="metadata"
+          />
+        ) : hasError ? (
           <Icon icon="media" size={32} style={{ color: 'var(--text-muted)' }} />
         ) : (
           <img
@@ -34,6 +45,27 @@ export const ImageCard: React.FC<ImageCardProps> = ({ image, onClick }) => {
             loading="lazy"
             onError={() => setHasError(true)}
           />
+        )}
+        {isVideo && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '6px',
+              right: '6px',
+              backgroundColor: 'rgba(0, 0, 0, 0.75)',
+              color: '#fff',
+              padding: '2px 6px',
+              borderRadius: '3px',
+              fontSize: '0.65rem',
+              fontFamily: 'var(--font-mono)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <Icon icon="video" size={12} style={{ color: '#fff' }} />
+            MP4
+          </div>
         )}
       </div>
       <div className="image-card-name" title={image.name}>

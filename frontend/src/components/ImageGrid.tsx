@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Spinner, NonIdealState, Button } from '@blueprintjs/core';
-import { useImages } from '../hooks/useImages';
+import { useInfiniteImages } from '../hooks/useImages';
 import { UrlState } from '../hooks/useUrlState';
 import { ImageCard } from './ImageCard';
 
@@ -11,10 +11,22 @@ interface ImageGridProps {
 }
 
 export const ImageGrid: React.FC<ImageGridProps> = ({ state, updateState, onSelectImage }) => {
-  const { data, isLoading, isError, error, refetch } = useImages(state);
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteImages(state);
+
   const containerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const isFirstMount = useRef(true);
 
+  // Scroll to top when directory or search filters change
   useEffect(() => {
     if (isFirstMount.current) {
       isFirstMount.current = false;
@@ -24,7 +36,33 @@ export const ImageGrid: React.FC<ImageGridProps> = ({ state, updateState, onSele
     if (mainEl) {
       mainEl.scrollTop = 0;
     }
-  }, [state.page, state.dir, state.q, state.sort, state.order, state.size, state.ext]);
+  }, [state.dir, state.q, state.sort, state.order, state.size, state.ext]);
+
+  // IntersectionObserver for continuous scroll
+  useEffect(() => {
+    const sentinelEl = sentinelRef.current;
+    if (!sentinelEl) return;
+
+    const mainEl = containerRef.current?.closest('.main-content') || document.querySelector('.main-content');
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      {
+        root: mainEl,
+        rootMargin: '300px',
+      }
+    );
+
+    observer.observe(sentinelEl);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (isLoading) {
     return (
@@ -47,7 +85,10 @@ export const ImageGrid: React.FC<ImageGridProps> = ({ state, updateState, onSele
     );
   }
 
-  if (!data || data.total === 0) {
+  const items = data ? data.pages.flatMap((page) => page.items) : [];
+  const total = data?.pages[0]?.total ?? 0;
+
+  if (items.length === 0) {
     return (
       <div style={{ padding: '4rem 2rem' }}>
         <NonIdealState
@@ -66,46 +107,36 @@ export const ImageGrid: React.FC<ImageGridProps> = ({ state, updateState, onSele
     );
   }
 
-  const totalPages = Math.ceil(data.total / data.size);
-  const currentPage = data.page;
-
   return (
     <div ref={containerRef}>
       <div className="image-grid">
-        {data.items.map((img) => (
+        {items.map((img, idx) => (
           <ImageCard
-            key={img.path}
+            key={`${img.path}-${idx}`}
             image={img}
             onClick={() => onSelectImage(img.path)}
           />
         ))}
       </div>
 
-      {totalPages > 1 && (
-        <div className="pagination-bar">
-          <Button
-            minimal
-            icon="chevron-left"
-            disabled={currentPage <= 1}
-            onClick={() => updateState({ page: currentPage - 1 })}
-          >
-            Previous
-          </Button>
+      {/* Sentinel element for infinite scroll */}
+      <div ref={sentinelRef} style={{ height: '20px', marginTop: '1.5rem' }} />
 
-          <span className="pagination-text">
-            Page {currentPage} of {totalPages} ({data.total} total)
-          </span>
-
-          <Button
-            minimal
-            rightIcon="chevron-right"
-            disabled={currentPage >= totalPages}
-            onClick={() => updateState({ page: currentPage + 1 })}
-          >
-            Next
+      {/* Loading indicator or status message */}
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '1.5rem 0', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
+        {isFetchingNextPage ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <Spinner size={24} />
+            <span>Loading more images...</span>
+          </div>
+        ) : hasNextPage ? (
+          <Button minimal onClick={() => fetchNextPage()}>
+            Load More ({items.length} of {total})
           </Button>
-        </div>
-      )}
+        ) : (
+          <span>Showing all {total} images</span>
+        )}
+      </div>
     </div>
   );
 };

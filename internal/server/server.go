@@ -145,7 +145,7 @@ func (s *Server) resolve(rel string) (string, error) {
 
 func isSupportedImage(ext string) bool {
 	switch strings.ToLower(ext) {
-	case ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp":
+	case ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".mp4":
 		return true
 	default:
 		return false
