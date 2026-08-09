@@ -1,49 +1,28 @@
 package server
 
-import "time"
+import "github.com/mamorett/qimg/internal/storage"
 
 type ImageListResponse struct {
-	Dir   string      `json:"dir"`
-	Items []ImageItem `json:"items"`
-	Total int         `json:"total"`
-	Page  int         `json:"page"`
-	Size  int         `json:"size"`
+	Dir   string              `json:"dir"`
+	Items []storage.ImageItem `json:"items"`
+	Total int                 `json:"total"`
+	Page  int                 `json:"page"`
+	Size  int                 `json:"size"`
 }
 
-type ImageItem struct {
-	Path    string    `json:"path"`
-	Name    string    `json:"name"`
-	Ext     string    `json:"ext"`
-	Size    int64     `json:"size"`
-	ModTime time.Time `json:"modTime"`
-	IsPng   bool      `json:"isPng"`
-}
+type ImageItem = storage.ImageItem
+type DirItem = storage.DirItem
 
 type DirsResponse struct {
-	Dirs []DirItem `json:"dirs"`
-}
-
-type DirItem struct {
-	Path       string `json:"path"`
-	Name       string `json:"name"`
-	ImageCount int    `json:"imageCount"`
+	Dirs []storage.DirItem `json:"dirs"`
 }
 
 type MetadataResponse struct {
-	File FileDetails  `json:"file"`
-	PNG  *PNGMetadata `json:"png"`
+	File storage.FileDetails `json:"file"`
+	PNG  *PNGMetadata        `json:"png"`
 }
 
-type FileDetails struct {
-	Path        string    `json:"path"`
-	Name        string    `json:"name"`
-	Ext         string    `json:"ext"`
-	Size        int64     `json:"size"`
-	ModTime     time.Time `json:"modTime"`
-	Width       int       `json:"width"`
-	Height      int       `json:"height"`
-	AspectRatio string    `json:"aspectRatio"`
-}
+type FileDetails = storage.FileDetails
 
 type PNGMetadata struct {
 	Chunks           map[string]string `json:"chunks"`

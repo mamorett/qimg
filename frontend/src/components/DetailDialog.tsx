@@ -68,6 +68,16 @@ export const DetailDialog: React.FC<DetailDialogProps> = ({ filePath, onClose })
 
   const isVideo = filePath ? filePath.toLowerCase().endsWith('.mp4') : false;
 
+  const handleDownloadFile = () => {
+    if (!fullImgUrl) return;
+    const link = document.createElement('a');
+    link.href = fullImgUrl;
+    link.download = fileName || 'file';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <Dialog
       isOpen={isOpen}
@@ -214,13 +224,13 @@ export const DetailDialog: React.FC<DetailDialogProps> = ({ filePath, onClose })
                       onClick={() => copyToClipboard(data.file.path, 'path')}
                     />
                   </Tooltip>
-                  <Tooltip content="Open original image">
+                  <Tooltip content={`Download ${fileName}`}>
                     <Button
                       icon="download"
                       minimal
                       small
                       style={{ color: 'var(--accent-secondary)' }}
-                      onClick={() => window.open(fullImgUrl, '_blank')}
+                      onClick={handleDownloadFile}
                     />
                   </Tooltip>
                 </div>
@@ -424,9 +434,12 @@ export const DetailDialog: React.FC<DetailDialogProps> = ({ filePath, onClose })
 
       <div className={Classes.DIALOG_FOOTER}>
         <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+          <Button icon="download" intent="primary" onClick={handleDownloadFile}>
+            Download File
+          </Button>
           <Button onClick={onClose}>Close</Button>
         </div>
       </div>
     </Dialog>
   );
-};
+};;

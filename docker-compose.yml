@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # qimg Application (Local Directory Mode)
+  qimg-local:
+    build: .
+    container_name: qimg-local
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./images:/data:ro
+      - qimg-cache:/cache
+    environment:
+      - QIMG_ROOT=/data
+      - QIMG_CACHE=/cache
+
+  # MinIO S3 Object Storage Service (For S3 Mode Testing)
+  minio:
+    image: minio/minio:latest
+    container_name: qimg-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+
+  # qimg Application (S3 Mode)
+  qimg-s3:
+    build: .
+    container_name: qimg-s3
+    ports:
+      - "8081:8080"
+    depends_on:
+      - minio
+    environment:
+      - S3_ENDPOINT=minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_SECURE=false
+      - QIMG_CACHE=/cache
+    volumes:
+      - qimg-cache:/cache
+
+volumes:
+  qimg-cache:
+  minio-data:

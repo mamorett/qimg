@@ -7,7 +7,7 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
-	"io/fs"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -39,24 +39,6 @@ func (s *Server) handleListImages(w http.ResponseWriter, r *http.Request) {
 		dirParam = "."
 	}
 
-	absDir, err := s.resolve(dirParam)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	st, err := os.Stat(absDir)
-	if err != nil || !st.IsDir() {
-		writeError(w, http.StatusNotFound, "directory not found")
-		return
-	}
-
-	entries, err := os.ReadDir(absDir)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to read directory")
-		return
-	}
-
 	q := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 
 	extParam := r.URL.Query().Get("ext")
@@ -74,51 +56,10 @@ func (s *Server) handleListImages(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	relDirFromRoot, err := filepath.Rel(s.config.Root, absDir)
+	items, err := s.storage.ListImages(dirParam, q, extFilter)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to compute relative directory")
+		writeError(w, http.StatusNotFound, err.Error())
 		return
-	}
-	if relDirFromRoot == "." {
-		relDirFromRoot = ""
-	}
-
-	var items []ImageItem
-	for _, entry := range entries {
-		if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
-			continue
-		}
-		ext := filepath.Ext(entry.Name())
-		if !isSupportedImage(ext) {
-			continue
-		}
-
-		if q != "" && !strings.Contains(strings.ToLower(entry.Name()), q) {
-			continue
-		}
-
-		if len(extFilter) > 0 && !extFilter[strings.ToLower(ext)] {
-			continue
-		}
-
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-
-		relPath := entry.Name()
-		if relDirFromRoot != "" {
-			relPath = path.Join(filepath.ToSlash(relDirFromRoot), entry.Name())
-		}
-
-		items = append(items, ImageItem{
-			Path:    relPath,
-			Name:    entry.Name(),
-			Ext:     ext,
-			Size:    info.Size(),
-			ModTime: info.ModTime(),
-			IsPng:   strings.EqualFold(ext, ".png"),
-		})
 	}
 
 	sortParam := r.URL.Query().Get("sort")
@@ -172,13 +113,8 @@ func (s *Server) handleListImages(w http.ResponseWriter, r *http.Request) {
 		pagedItems = items[start:end]
 	}
 
-	displayDir := filepath.ToSlash(relDirFromRoot)
-	if displayDir == "" {
-		displayDir = "."
-	}
-
 	writeJSON(w, http.StatusOK, ImageListResponse{
-		Dir:   displayDir,
+		Dir:   dirParam,
 		Items: pagedItems,
 		Total: total,
 		Page:  page,
@@ -187,134 +123,17 @@ func (s *Server) handleListImages(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListDirs(w http.ResponseWriter, r *http.Request) {
-	isRecursive := r.URL.Query().Get("recursive") == "true" || r.URL.Query().Get("tree") == "true"
-
-	if isRecursive {
-		var dirs []DirItem
-		dirImageCounts := make(map[string]int)
-
-		_ = filepath.WalkDir(s.config.Root, func(p string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return nil
-			}
-			if d.IsDir() {
-				if strings.HasPrefix(d.Name(), ".") && p != s.config.Root {
-					return filepath.SkipDir
-				}
-				if s.config.CacheDir != "" && p == s.config.CacheDir {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if !strings.HasPrefix(d.Name(), ".") && isSupportedImage(filepath.Ext(d.Name())) {
-				parent := filepath.Dir(p)
-				relParent, err := filepath.Rel(s.config.Root, parent)
-				if err == nil {
-					relSlash := filepath.ToSlash(relParent)
-					dirImageCounts[relSlash]++
-				}
-			}
-			return nil
-		})
-
-		_ = filepath.WalkDir(s.config.Root, func(p string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return nil
-			}
-			if !d.IsDir() {
-				return nil
-			}
-			if strings.HasPrefix(d.Name(), ".") && p != s.config.Root {
-				return filepath.SkipDir
-			}
-			if s.config.CacheDir != "" && p == s.config.CacheDir {
-				return filepath.SkipDir
-			}
-
-			rel, err := filepath.Rel(s.config.Root, p)
-			if err != nil {
-				return nil
-			}
-			relSlash := filepath.ToSlash(rel)
-			name := d.Name()
-			if relSlash == "." {
-				name = "Root"
-			}
-			dirs = append(dirs, DirItem{
-				Path:       relSlash,
-				Name:       name,
-				ImageCount: dirImageCounts[relSlash],
-			})
-			return nil
-		})
-
-		if dirs == nil {
-			dirs = []DirItem{}
-		}
-
-		writeJSON(w, http.StatusOK, DirsResponse{Dirs: dirs})
-		return
-	}
-
 	dirParam := r.URL.Query().Get("dir")
 	if dirParam == "" {
 		dirParam = "."
 	}
 
-	absDir, err := s.resolve(dirParam)
+	isRecursive := r.URL.Query().Get("recursive") == "true" || r.URL.Query().Get("tree") == "true"
+
+	dirs, err := s.storage.ListDirs(dirParam, isRecursive)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
-	}
-
-	st, err := os.Stat(absDir)
-	if err != nil || !st.IsDir() {
-		writeError(w, http.StatusNotFound, "directory not found")
-		return
-	}
-
-	entries, err := os.ReadDir(absDir)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to read directory")
-		return
-	}
-
-	relDirFromRoot, _ := filepath.Rel(s.config.Root, absDir)
-	if relDirFromRoot == "." {
-		relDirFromRoot = ""
-	}
-
-	var dirs []DirItem
-	for _, entry := range entries {
-		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
-			continue
-		}
-
-		subDirPath := filepath.Join(absDir, entry.Name())
-		subEntries, err := os.ReadDir(subDirPath)
-		imgCount := 0
-		if err == nil {
-			for _, subEntry := range subEntries {
-				if !subEntry.IsDir() && !strings.HasPrefix(subEntry.Name(), ".") && isSupportedImage(filepath.Ext(subEntry.Name())) {
-					imgCount++
-				}
-			}
-		}
-
-		relSubPath := entry.Name()
-		if relDirFromRoot != "" {
-			relSubPath = path.Join(filepath.ToSlash(relDirFromRoot), entry.Name())
-		}
-
-		dirs = append(dirs, DirItem{
-			Path:       relSubPath,
-			Name:       entry.Name(),
-			ImageCount: imgCount,
-		})
-	}
-
-	if dirs == nil {
-		dirs = []DirItem{}
 	}
 
 	writeJSON(w, http.StatusOK, DirsResponse{Dirs: dirs})
@@ -327,23 +146,24 @@ func (s *Server) handleGetMetadata(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	absPath, err := s.resolve(relPath)
+	localPath, cleanup, err := s.storage.GetLocalFile(relPath)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
+	defer cleanup()
 
-	st, err := os.Stat(absPath)
-	if err != nil || st.IsDir() {
+	st, err := os.Stat(localPath)
+	if err != nil {
 		writeError(w, http.StatusNotFound, "file not found")
 		return
 	}
 
-	ext := filepath.Ext(st.Name())
+	ext := filepath.Ext(relPath)
 	isPng := strings.EqualFold(ext, ".png")
 
 	wDim, hDim := 0, 0
-	if f, err := os.Open(absPath); err == nil {
+	if f, err := os.Open(localPath); err == nil {
 		cfg, _, err := image.DecodeConfig(f)
 		if err == nil {
 			wDim = cfg.Width
@@ -352,10 +172,9 @@ func (s *Server) handleGetMetadata(w http.ResponseWriter, r *http.Request) {
 		f.Close()
 	}
 
-	relFromRoot, _ := filepath.Rel(s.config.Root, absPath)
 	fileDetails := FileDetails{
-		Path:        filepath.ToSlash(relFromRoot),
-		Name:        st.Name(),
+		Path:        relPath,
+		Name:        path.Base(relPath),
 		Ext:         ext,
 		Size:        st.Size(),
 		ModTime:     st.ModTime(),
@@ -371,17 +190,17 @@ func (s *Server) handleGetMetadata(w http.ResponseWriter, r *http.Request) {
 			Prompts: []PromptDTO{},
 		}
 
-		chunks, err := png.ReadTextChunks(absPath)
+		chunks, err := png.ReadTextChunks(localPath)
 		if err == nil && chunks != nil {
 			pngMeta.Chunks = chunks
 		}
 
 		pe := &extractor.PromptExtractor{}
-		res, errComfy := pe.ExtractComfyUI(absPath, &extractor.ExtractionOptions{Width: wDim, Height: hDim})
+		res, errComfy := pe.ExtractComfyUI(localPath, &extractor.ExtractionOptions{Width: wDim, Height: hDim})
 		method := "comfyui"
 
 		if errComfy != nil || res == nil || len(res.PositivePrompts) == 0 {
-			resParam, errParam := pe.ExtractParameters(absPath, &extractor.ExtractionOptions{Width: wDim, Height: hDim})
+			resParam, errParam := pe.ExtractParameters(localPath, &extractor.ExtractionOptions{Width: wDim, Height: hDim})
 			if errParam == nil && resParam != nil && len(resParam.PositivePrompts) > 0 {
 				res = resParam
 				method = "parameters"
@@ -417,24 +236,19 @@ func (s *Server) handleGetThumb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	absPath, err := s.resolve(relPath)
+	localPath, cleanup, err := s.storage.GetLocalFile(relPath)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
-
-	st, err := os.Stat(absPath)
-	if err != nil || st.IsDir() {
-		writeError(w, http.StatusNotFound, "file not found")
-		return
-	}
+	defer cleanup()
 
 	if s.config.CacheDir == "" {
 		http.Redirect(w, r, "/img/full/"+relPath, http.StatusFound)
 		return
 	}
 
-	thumbPath, err := thumbs.Get(s.config.CacheDir, absPath, 384)
+	thumbPath, err := thumbs.Get(s.config.CacheDir, localPath, 384)
 	if err != nil {
 		http.Redirect(w, r, "/img/full/"+relPath, http.StatusFound)
 		return
@@ -451,27 +265,22 @@ func (s *Server) handleGetFull(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	absPath, err := s.resolve(relPath)
+	reader, size, modTime, err := s.storage.GetFile(relPath)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
-
-	st, err := os.Stat(absPath)
-	if err != nil || st.IsDir() {
-		writeError(w, http.StatusNotFound, "file not found")
-		return
-	}
-
-	f, err := os.Open(absPath)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "cannot open file")
-		return
-	}
-	defer f.Close()
+	defer reader.Close()
 
 	w.Header().Set("Cache-Control", "public, max-age=3600")
-	http.ServeContent(w, r, st.Name(), st.ModTime(), f)
+	if seeker, ok := reader.(io.ReadSeeker); ok {
+		http.ServeContent(w, r, path.Base(relPath), modTime, seeker)
+		return
+	}
+
+	w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
+	w.Header().Set("Last-Modified", modTime.UTC().Format(http.TimeFormat))
+	_, _ = io.Copy(w, reader)
 }
 
 func (s *Server) handleGetVersion(w http.ResponseWriter, r *http.Request) {

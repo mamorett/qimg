@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Tag, Icon } from '@blueprintjs/core';
+import { Card, Tag, Icon, Button, Tooltip } from '@blueprintjs/core';
 import { ImageItem } from '../api/types';
 
 interface ImageCardProps {
@@ -21,6 +21,16 @@ export const ImageCard: React.FC<ImageCardProps> = ({ image, onClick }) => {
   const isVideo = image.ext.toLowerCase() === '.mp4';
   const fullUrl = `/img/full/${image.path.split('/').map(encodeURIComponent).join('/')}`;
   const thumbUrl = `/img/thumb/${image.path.split('/').map(encodeURIComponent).join('/')}`;
+
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const link = document.createElement('a');
+    link.href = fullUrl;
+    link.download = image.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <Card interactive onClick={onClick} className="image-card">
@@ -46,6 +56,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({ image, onClick }) => {
             onError={() => setHasError(true)}
           />
         )}
+
         {isVideo && (
           <div
             style={{
@@ -68,16 +79,31 @@ export const ImageCard: React.FC<ImageCardProps> = ({ image, onClick }) => {
           </div>
         )}
       </div>
+
       <div className="image-card-name" title={image.name}>
         {image.name}
       </div>
-      <div className="image-card-tags">
-        <Tag minimal style={{ textTransform: 'uppercase', fontSize: '0.65rem' }}>
-          {image.ext.replace('.', '')}
-        </Tag>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-          {formatBytes(image.size)}
-        </span>
+
+      <div className="image-card-tags" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <Tag minimal style={{ textTransform: 'uppercase', fontSize: '0.65rem' }}>
+            {image.ext.replace('.', '')}
+          </Tag>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+            {formatBytes(image.size)}
+          </span>
+        </div>
+
+        <Tooltip content={`Download ${image.name}`}>
+          <Button
+            minimal
+            small
+            icon="download"
+            title="Download"
+            onClick={handleDownload}
+            style={{ padding: '0 4px', minHeight: '22px' }}
+          />
+        </Tooltip>
       </div>
     </Card>
   );
