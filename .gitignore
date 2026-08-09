@@ -14,5 +14,5 @@ Thumbs.db
 
 # Cache
 .cache/
-thumbs/
+/thumbs/
 blueprint_docs/
