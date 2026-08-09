@@ -19,7 +19,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o qimg ./cmd/qimg
 
 # Stage 3: Minimal Production Image
 FROM alpine:3.21
-RUN apk add --no-ca-certificates ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 
 # Create default directories for data and cache
