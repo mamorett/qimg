@@ -11,9 +11,7 @@ FROM golang:1.26-alpine AS backend-builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
-COPY cmd/ ./cmd/
-COPY internal/ ./internal/
-COPY frontend/embed.go ./frontend/
+COPY . .
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o qimg ./cmd/qimg
 
