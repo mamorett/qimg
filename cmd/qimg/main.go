@@ -66,10 +66,18 @@ func main() {
 		}
 	}
 
+	rootSet := false
+	flag.CommandLine.Visit(func(f *flag.Flag) {
+		if f.Name == "root" {
+			rootSet = true
+		}
+	})
+
 	var st storage.Storage
 
-	// Mutually exclusive: S3 Storage mode vs Local Directory Storage mode
-	if *s3EndpointFlag != "" {
+	// Priority: Explicit -root flag supersedes S3 configuration.
+	// Otherwise, if S3 endpoint is configured (via CLI or env), use S3 Storage mode.
+	if !rootSet && *s3EndpointFlag != "" {
 		secure := parseBoolEnv(*s3SecureFlag, true)
 		s3Store, err := storage.NewS3Storage(storage.S3Config{
 			Endpoint:  *s3EndpointFlag,
@@ -95,7 +103,11 @@ func main() {
 			log.Fatalf("failed to initialize local storage: %v", err)
 		}
 		st = localStore
-		fmt.Printf("qimg initialized in Local storage mode (root: %s)\n", absRoot)
+		if rootSet {
+			fmt.Printf("qimg initialized in Local storage mode (-root flag set: %s)\n", absRoot)
+		} else {
+			fmt.Printf("qimg initialized in Local storage mode (root: %s)\n", absRoot)
+		}
 	}
 
 	srv, err := server.New(server.Config{

@@ -63,6 +63,8 @@ Open your browser at `http://localhost:8080`.
 
 `qimg` supports S3 object storage as a mutually exclusive option to local directory browsing.
 
+> **Note on Precedence**: If the `-root` flag is explicitly passed on the command line, it **supersedes** any `S3_*` environment variables or flags, opening in Local Directory Mode instead.
+
 ### Environment Variables
 
 | Variable | Description | Example |
