@@ -1,6 +1,7 @@
 import React from 'react';
-import { Navbar, NavbarGroup, Alignment, Button, Classes, InputGroup, HTMLSelect, Popover, Slider, Tooltip } from '@blueprintjs/core';
+import { Navbar, NavbarGroup, Alignment, Button, Classes, InputGroup, HTMLSelect, Popover, Slider, Tooltip, Icon } from '@blueprintjs/core';
 import { UrlState } from '../hooks/useUrlState';
+import { useStorageMode, useBuckets } from '../hooks/useImages';
 
 interface AppNavbarProps {
   state: UrlState;
@@ -27,6 +28,21 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
   fitMode,
   onToggleFitMode,
 }) => {
+  const { data: modeData } = useStorageMode();
+  const { data: bucketsData } = useBuckets();
+
+  const isS3Mode = modeData?.mode === 's3';
+  const showBucketDropdown = isS3Mode && !modeData?.configuredBucket;
+  const buckets = bucketsData?.buckets || [];
+  
+  // Extract current bucket from state.dir if set (e.g., "my-bucket" or "my-bucket/folder")
+  const currentBucket = state.dir && state.dir !== '.' ? state.dir.split('/')[0] : '';
+
+  const handleBucketChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedBucket = e.target.value;
+    updateState({ dir: selectedBucket ? selectedBucket : '.', page: 1 });
+  };
+
   return (
     <Navbar className={`app-top-navbar ${theme === 'dark-nord' ? 'theme-dark-nord' : ''}`}>
       <NavbarGroup align={Alignment.LEFT} style={{ gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -35,6 +51,26 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
         </Navbar.Heading>
 
         <Navbar.Divider />
+
+        {/* Bucket Dropdown for S3 Mode (when S3_BUCKET / -s3-bucket is NOT set) */}
+        {showBucketDropdown && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', backgroundColor: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: '4px' }}>
+            <Icon icon="cloud" style={{ color: 'var(--accent-primary)' }} />
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Bucket:</span>
+            <HTMLSelect
+              minimal
+              value={currentBucket}
+              onChange={handleBucketChange}
+              options={[
+                { label: '-- Select Bucket --', value: '' },
+                ...buckets.map((b) => ({ label: b, value: b })),
+              ]}
+              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}
+            />
+          </div>
+        )}
+
+        {showBucketDropdown && <Navbar.Divider />}
 
         {/* Search Input */}
         <InputGroup

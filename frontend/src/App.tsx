@@ -50,6 +50,7 @@ function MainApp() {
   }, [fitMode]);
 
   const handleRefresh = () => {
+    qc.removeQueries({ queryKey: ['images'] });
     qc.invalidateQueries({ queryKey: ['images'] });
     qc.invalidateQueries({ queryKey: ['dirs'] });
     showToaster({

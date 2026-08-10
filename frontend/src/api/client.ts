@@ -46,3 +46,21 @@ export async function fetchVersion(): Promise<VersionInfo> {
   const res = await fetch('/api/version');
   return handleResponse<VersionInfo>(res);
 }
+
+export async function deleteImage(path: string): Promise<{ success: boolean; path: string }> {
+  const query = new URLSearchParams({ path });
+  const res = await fetch(`/api/image?${query.toString()}`, {
+    method: 'DELETE',
+  });
+  return handleResponse<{ success: boolean; path: string }>(res);
+}
+
+export async function fetchBuckets(): Promise<{ buckets: string[]; active?: string }> {
+  const res = await fetch('/api/buckets');
+  return handleResponse<{ buckets: string[]; active?: string }>(res);
+}
+
+export async function fetchStorageMode(): Promise<{ mode: string; configuredBucket?: string }> {
+  const res = await fetch('/api/mode');
+  return handleResponse<{ mode: string; configuredBucket?: string }>(res);
+}

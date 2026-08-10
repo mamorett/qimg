@@ -39,6 +39,21 @@ type PromptDTO struct {
 	Source   string `json:"source"`
 }
 
+type DeleteResponse struct {
+	Success bool   `json:"success"`
+	Path    string `json:"path"`
+}
+
+type BucketsResponse struct {
+	Buckets []string `json:"buckets"`
+	Active  string   `json:"active,omitempty"`
+}
+
+type ModeResponse struct {
+	Mode           string `json:"mode"`
+	ConfiguredBucket string `json:"configuredBucket,omitempty"`
+}
+
 type VersionResponse struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`

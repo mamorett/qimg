@@ -1,5 +1,5 @@
-import { useQuery, useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
-import { fetchImages, fetchDirs, fetchMetadata, fetchVersion } from '../api/client';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { fetchImages, fetchDirs, fetchMetadata, fetchVersion, deleteImage, fetchBuckets, fetchStorageMode } from '../api/client';
 import { ImagesQuery } from '../api/types';
 
 export function useInfiniteImages(params: ImagesQuery) {
@@ -57,3 +57,32 @@ export function useVersion() {
     staleTime: Infinity,
   });
 }
+
+export function useStorageMode() {
+  return useQuery({
+    queryKey: ['storageMode'],
+    queryFn: () => fetchStorageMode(),
+    staleTime: Infinity,
+  });
+}
+
+export function useBuckets() {
+  return useQuery({
+    queryKey: ['buckets'],
+    queryFn: () => fetchBuckets(),
+    staleTime: 60000,
+  });
+}
+
+export function useDeleteImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (path: string) => deleteImage(path),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: ['images'] });
+      qc.invalidateQueries({ queryKey: ['images'] });
+      qc.invalidateQueries({ queryKey: ['dirs'] });
+    },
+  });
+}
+

@@ -286,6 +286,22 @@ func (l *LocalStorage) GetFile(relPath string) (io.ReadCloser, int64, time.Time,
 	return f, st.Size(), st.ModTime(), nil
 }
 
+func (l *LocalStorage) DeleteFile(relPath string) error {
+	absPath, err := l.resolve(relPath)
+	if err != nil {
+		return err
+	}
+	st, err := os.Stat(absPath)
+	if err != nil || st.IsDir() {
+		return errors.New("file not found")
+	}
+	return os.Remove(absPath)
+}
+
+func (l *LocalStorage) ListBuckets() ([]string, error) {
+	return []string{}, nil
+}
+
 func (l *LocalStorage) GetLocalFile(relPath string) (string, func(), error) {
 	absPath, err := l.resolve(relPath)
 	if err != nil {

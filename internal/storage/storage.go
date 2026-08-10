@@ -46,6 +46,12 @@ type Storage interface {
 	// GetLocalFile returns a local file path (downloading to temp/cache if needed)
 	GetLocalFile(path string) (string, func(), error)
 
+	// DeleteFile removes a file at the given relative path
+	DeleteFile(path string) error
+
+	// ListBuckets returns available S3 bucket names (or empty slice if local)
+	ListBuckets() ([]string, error)
+
 	// Mode returns the storage mode name ("local" or "s3")
 	Mode() string
 }

@@ -18,6 +18,7 @@ import (
 
 	"github.com/mamorett/qimg/internal/extractor"
 	"github.com/mamorett/qimg/internal/png"
+	"github.com/mamorett/qimg/internal/storage"
 	"github.com/mamorett/qimg/internal/thumbs"
 	_ "golang.org/x/image/bmp"
 	_ "golang.org/x/image/webp"
@@ -287,6 +288,48 @@ func (s *Server) handleGetVersion(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, VersionResponse{
 		Name:    "qimg",
 		Version: "1.0.0",
+	})
+}
+
+func (s *Server) handleDeleteImage(w http.ResponseWriter, r *http.Request) {
+	relPath := r.URL.Query().Get("path")
+	if relPath == "" {
+		writeError(w, http.StatusBadRequest, "path parameter required")
+		return
+	}
+
+	err := s.storage.DeleteFile(relPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, DeleteResponse{
+		Success: true,
+		Path:    relPath,
+	})
+}
+
+func (s *Server) handleListBuckets(w http.ResponseWriter, r *http.Request) {
+	buckets, err := s.storage.ListBuckets()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, BucketsResponse{
+		Buckets: buckets,
+	})
+}
+
+func (s *Server) handleGetMode(w http.ResponseWriter, r *http.Request) {
+	configuredBucket := ""
+	if s3Store, ok := s.storage.(*storage.S3Storage); ok {
+		configuredBucket = s3Store.ConfiguredBucket()
+	}
+	writeJSON(w, http.StatusOK, ModeResponse{
+		Mode:             s.storage.Mode(),
+		ConfiguredBucket: configuredBucket,
 	})
 }
 

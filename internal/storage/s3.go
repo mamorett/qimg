@@ -68,6 +68,10 @@ func (s *S3Storage) Mode() string {
 	return "s3"
 }
 
+func (s *S3Storage) ConfiguredBucket() string {
+	return s.config.Bucket
+}
+
 func (s *S3Storage) resolveBucketAndPrefix(dir string) (string, string) {
 	dir = CleanPath(dir)
 
@@ -364,3 +368,37 @@ func (s *S3Storage) GetLocalFile(relPath string) (string, func(), error) {
 	_ = os.Rename(tmpPath, cachedPath)
 	return cachedPath, func() {}, nil
 }
+
+func (s *S3Storage) DeleteFile(relPath string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	bucket, key, err := s.resolveBucketAndKey(relPath)
+	if err != nil {
+		return err
+	}
+
+	opts := minio.RemoveObjectOptions{}
+	err = s.client.RemoveObject(ctx, bucket, key, opts)
+	if err != nil {
+		return fmt.Errorf("failed to delete object: %w", err)
+	}
+	return nil
+}
+
+func (s *S3Storage) ListBuckets() ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	bl, err := s.client.ListBuckets(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list buckets: %w", err)
+	}
+
+	buckets := make([]string, 0, len(bl))
+	for _, b := range bl {
+		buckets = append(buckets, b.Name)
+	}
+	return buckets, nil
+}
+

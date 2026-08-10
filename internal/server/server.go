@@ -62,6 +62,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/dirs", s.handleListDirs)
 	s.mux.HandleFunc("GET /api/metadata", s.handleGetMetadata)
 	s.mux.HandleFunc("GET /api/version", s.handleGetVersion)
+	s.mux.HandleFunc("GET /api/buckets", s.handleListBuckets)
+	s.mux.HandleFunc("GET /api/mode", s.handleGetMode)
+	s.mux.HandleFunc("DELETE /api/image", s.handleDeleteImage)
 	s.mux.HandleFunc("GET /img/thumb/{path...}", s.handleGetThumb)
 	s.mux.HandleFunc("GET /img/full/{path...}", s.handleGetFull)
 
