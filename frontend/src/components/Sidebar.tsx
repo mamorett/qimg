@@ -9,10 +9,10 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ state, updateState }) => {
-  const { data: dirsData, isLoading, isError } = useDirs('.', true);
+  const currentDir = state.dir || '.';
+  const { data: dirsData, isLoading, isError } = useDirs(currentDir, true);
   const [filterQuery, setFilterQuery] = useState('');
 
-  const currentDir = state.dir || '.';
   const dirs = dirsData?.dirs || [];
 
   const filteredDirs = dirs.filter((d) => {

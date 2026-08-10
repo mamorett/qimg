@@ -180,12 +180,13 @@ func (s *S3Storage) ListDirs(dir string, recursive bool) ([]DirItem, error) {
 	defer cancel()
 
 	if recursive {
-		var dirs []DirItem
-		dirImageCounts := make(map[string]int)
+		bucket, _ := s.resolveBucketAndPrefix(dir)
 
 		var buckets []string
 		if s.config.Bucket != "" {
 			buckets = []string{s.config.Bucket}
+		} else if bucket != "" {
+			buckets = []string{bucket}
 		} else {
 			bl, err := s.client.ListBuckets(ctx)
 			if err == nil {
@@ -195,11 +196,17 @@ func (s *S3Storage) ListDirs(dir string, recursive bool) ([]DirItem, error) {
 			}
 		}
 
+		var dirs []DirItem
 		for _, b := range buckets {
+			dirImageCounts := make(map[string]int)
+			dirOrder := []string{}
+
 			if s.config.Bucket == "" {
 				dirImageCounts[b] = 0
+				dirOrder = append(dirOrder, b)
 			} else {
 				dirImageCounts["."] = 0
+				dirOrder = append(dirOrder, ".")
 			}
 
 			objectCh := s.client.ListObjects(ctx, b, minio.ListObjectsOptions{Recursive: true})
@@ -212,44 +219,35 @@ func (s *S3Storage) ListDirs(dir string, recursive bool) ([]DirItem, error) {
 				}
 
 				dirKey := path.Dir(obj.Key)
+				var targetPath string
 				if s.config.Bucket == "" {
 					if dirKey == "." {
-						dirImageCounts[b]++
+						targetPath = b
 					} else {
-						dirImageCounts[b+"/"+dirKey]++
+						targetPath = b + "/" + dirKey
 					}
 				} else {
-					if dirKey == "." {
-						dirImageCounts["."]++
-					} else {
-						dirImageCounts[dirKey]++
-					}
+					targetPath = dirKey
 				}
+
+				if _, exists := dirImageCounts[targetPath]; !exists {
+					dirImageCounts[targetPath] = 0
+					dirOrder = append(dirOrder, targetPath)
+				}
+				dirImageCounts[targetPath]++
 			}
 
-			if s.config.Bucket == "" {
-				dirs = append(dirs, DirItem{
-					Path:       b,
-					Name:       b,
-					ImageCount: dirImageCounts[b],
-				})
-			} else {
-				dirs = append(dirs, DirItem{
-					Path:       ".",
-					Name:       "Root (.)",
-					ImageCount: dirImageCounts["."],
-				})
-			}
-
-			for dPath, count := range dirImageCounts {
-				if dPath == "." || (s.config.Bucket == "" && dPath == b) {
-					continue
+			for _, dPath := range dirOrder {
+				name := dPath
+				if dPath == "." {
+					name = "Root (.)"
+				} else {
+					name = path.Base(dPath)
 				}
-				name := path.Base(dPath)
 				dirs = append(dirs, DirItem{
 					Path:       dPath,
 					Name:       name,
-					ImageCount: count,
+					ImageCount: dirImageCounts[dPath],
 				})
 			}
 		}
