@@ -45,8 +45,17 @@ func main() {
 	s3RegionEnv := os.Getenv("S3_REGION")
 	s3BucketEnv := os.Getenv("S3_BUCKET")
 
+	defaultRoot := os.Getenv("QIMG_ROOT")
+	if defaultRoot == "" {
+		if _, err := os.Stat("/data"); err == nil {
+			defaultRoot = "/data"
+		} else {
+			defaultRoot = cwd
+		}
+	}
+
 	// CLI flags
-	rootDirFlag := flag.String("root", cwd, "Root directory to browse for local images")
+	rootDirFlag := flag.String("root", defaultRoot, "Root directory to browse for local images")
 	addrFlag := flag.String("addr", ":8080", "Listen address for HTTP server")
 	openFlag := flag.Bool("open", false, "Open browser automatically on startup")
 	cacheDirFlag := flag.String("cache", defaultCacheDir, "Thumbnail cache directory")

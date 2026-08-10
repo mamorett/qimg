@@ -34,4 +34,4 @@ ENV QIMG_ROOT="/data"
 ENV QIMG_CACHE="/cache"
 
 ENTRYPOINT ["/app/qimg"]
-CMD ["-addr", ":8080", "-root", "/data", "-cache", "/cache"]
+CMD ["-addr", ":8080", "-cache", "/cache"]
