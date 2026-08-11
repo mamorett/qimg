@@ -180,13 +180,9 @@ func (s *S3Storage) ListDirs(dir string, recursive bool) ([]DirItem, error) {
 	defer cancel()
 
 	if recursive {
-		bucket, _ := s.resolveBucketAndPrefix(dir)
-
 		var buckets []string
 		if s.config.Bucket != "" {
 			buckets = []string{s.config.Bucket}
-		} else if bucket != "" {
-			buckets = []string{bucket}
 		} else {
 			bl, err := s.client.ListBuckets(ctx)
 			if err == nil {

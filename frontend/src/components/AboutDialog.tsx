@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dialog, Classes, H5, Text } from '@blueprintjs/core';
+import { Dialog, Classes, H5, Text, Button } from '@blueprintjs/core';
 import logoUrl from '../assets/logo.png';
 
 interface AboutDialogProps {
@@ -68,6 +68,13 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
           <Text style={{ color: 'var(--text-muted)' }}>Copyright © 2026 Mattia Moretti</Text>
           <Text style={{ color: 'var(--text-muted)' }}>Built with Go • React • BlueprintJS • TypeScript</Text>
           <Text style={{ color: 'var(--text-muted)' }}>Licensed under the MIT License</Text>
+        </div>
+      </div>
+      <div className={Classes.DIALOG_FOOTER}>
+        <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+          <Button intent="primary" onClick={onClose}>
+            OK
+          </Button>
         </div>
       </div>
     </Dialog>
