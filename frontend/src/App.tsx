@@ -5,6 +5,7 @@ import { useUrlState } from './hooks/useUrlState';
 import { AppNavbar } from './components/AppNavbar';
 import { Sidebar } from './components/Sidebar';
 import { ImageGrid } from './components/ImageGrid';
+import { BrowseView } from './components/BrowseView';
 import { DetailDialog } from './components/DetailDialog';
 import { AboutDialog } from './components/AboutDialog';
 import { setToasterRef, showToaster } from './components/Toast';
@@ -69,6 +70,8 @@ function MainApp() {
     setFitMode((prev) => (prev === 'contain' ? 'cover' : 'contain'));
   };
 
+  const isBrowse = state.view === 'browse';
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <AppNavbar
@@ -82,16 +85,22 @@ function MainApp() {
         onCardSizeChange={setCardSize}
         fitMode={fitMode}
         onToggleFitMode={toggleFitMode}
+        view={isBrowse ? 'browse' : 'grid'}
+        onViewChange={(v) => updateState({ view: v, browseIndex: v === 'browse' ? 0 : state.browseIndex })}
       />
 
       <div className="app-layout">
         <Sidebar state={state} updateState={updateState} />
-        <main className="main-content">
-          <ImageGrid
-            state={state}
-            updateState={updateState}
-            onSelectImage={(path) => updateState({ file: path })}
-          />
+        <main className={`main-content${isBrowse ? ' main-content--browse' : ''}`}>
+          {isBrowse ? (
+            <BrowseView state={state} updateState={updateState} />
+          ) : (
+            <ImageGrid
+              state={state}
+              updateState={updateState}
+              onSelectImage={(path) => updateState({ file: path })}
+            />
+          )}
         </main>
       </div>
 

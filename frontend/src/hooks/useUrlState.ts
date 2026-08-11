@@ -1,13 +1,18 @@
 import { useState, useCallback } from 'react';
 import { ImagesQuery } from '../api/types';
 
+export type ViewMode = 'grid' | 'browse';
+
 export interface UrlState extends ImagesQuery {
   file?: string;
+  view?: ViewMode;
+  browseIndex?: number;
 }
 
 export function useUrlState() {
   const [state, setState] = useState<UrlState>(() => {
     const search = new URLSearchParams(window.location.search);
+    const viewParam = (search.get('view') as ViewMode) || 'grid';
     return {
       dir: search.get('dir') || '.',
       q: search.get('q') || '',
@@ -17,6 +22,8 @@ export function useUrlState() {
       size: search.get('size') ? Number(search.get('size')) : 60,
       ext: search.get('ext') || '',
       file: search.get('file') || undefined,
+      view: viewParam === 'browse' ? 'browse' : 'grid',
+      browseIndex: search.get('bi') ? Number(search.get('bi')) : 0,
     };
   });
 
@@ -33,6 +40,8 @@ export function useUrlState() {
       if (next.size && next.size !== 60) search.set('size', next.size.toString());
       if (next.ext) search.set('ext', next.ext);
       if (next.file) search.set('file', next.file);
+      if (next.view && next.view !== 'grid') search.set('view', next.view);
+      if (next.browseIndex && next.browseIndex > 0) search.set('bi', next.browseIndex.toString());
 
       const newUrl = search.toString() ? `${window.location.pathname}?${search.toString()}` : window.location.pathname;
       window.history.replaceState({}, '', newUrl);

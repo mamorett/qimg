@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navbar, NavbarGroup, Alignment, Button, Classes, InputGroup, HTMLSelect, Popover, Slider, Tooltip, Icon } from '@blueprintjs/core';
-import { UrlState } from '../hooks/useUrlState';
+import { UrlState, ViewMode } from '../hooks/useUrlState';
 import { useStorageMode, useBuckets } from '../hooks/useImages';
 
 interface AppNavbarProps {
@@ -14,6 +14,8 @@ interface AppNavbarProps {
   onCardSizeChange: (size: number) => void;
   fitMode: 'contain' | 'cover';
   onToggleFitMode: () => void;
+  view: ViewMode;
+  onViewChange: (view: ViewMode) => void;
 }
 
 export const AppNavbar: React.FC<AppNavbarProps> = ({
@@ -27,6 +29,8 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
   onCardSizeChange,
   fitMode,
   onToggleFitMode,
+  view,
+  onViewChange,
 }) => {
   const { data: modeData } = useStorageMode();
   const { data: bucketsData } = useBuckets();
@@ -110,6 +114,28 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
       </NavbarGroup>
 
       <NavbarGroup align={Alignment.RIGHT} style={{ gap: '0.35rem' }}>
+        {/* View Mode Toggle: Grid vs Browse */}
+        <Tooltip content={view === 'grid' ? 'Grid view' : 'Switch to Grid view'}>
+          <Button
+            className={Classes.MINIMAL}
+            small
+            icon="grid-view"
+            active={view === 'grid'}
+            onClick={() => onViewChange('grid')}
+          />
+        </Tooltip>
+        <Tooltip content={view === 'browse' ? 'Browse view (one image at a time)' : 'Switch to Browse view'}>
+          <Button
+            className={Classes.MINIMAL}
+            small
+            icon="full-circle"
+            active={view === 'browse'}
+            onClick={() => onViewChange('browse')}
+          />
+        </Tooltip>
+
+        <Navbar.Divider />
+
         {/* Fit vs Crop Toggle */}
         <Tooltip content={fitMode === 'contain' ? 'Display full image (no cropping)' : 'Crop image to fill square box'}>
           <Button
