@@ -33,5 +33,7 @@ EXPOSE 8080
 ENV QIMG_ROOT="/data"
 ENV QIMG_CACHE="/cache"
 
+LABEL org.opencontainers.image.source="https://github.com/mamorett/qimg"
+
 ENTRYPOINT ["/app/qimg"]
 CMD ["-addr", ":8080", "-cache", "/cache"]
