@@ -69,8 +69,53 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
     updateState({ browseIndex: clamped });
   };
 
-  const goPrev = () => goTo(index - 1);
-  const goNext = () => goTo(index + 1);
+  // Load every remaining page so `items` covers the full list, then jump to the
+  // true last image (index `total - 1`).
+  const goEnd = async () => {
+    if (items.length === 0) return;
+    try {
+      let more = true;
+      while (more) {
+        const result = await fetchNextPage();
+        const pages = result.data?.pages;
+        if (!pages || pages.length === 0) break;
+        const lastPage = pages[pages.length - 1];
+        const totalPages = Math.ceil(lastPage.total / lastPage.size);
+        more = pages.length < totalPages;
+      }
+    } catch {
+      // Fall through and jump to whatever pages are currently loaded.
+    }
+    updateState({ browseIndex: total - 1 });
+  };
+
+  const goPrev = () => {
+    if (items.length === 0) return;
+    if (index === 0) {
+      goEnd(); // wrap from first to true last image
+    } else {
+      goTo(index - 1);
+    }
+  };
+
+  const goNext = async () => {
+    if (items.length === 0) return;
+    if (atEnd) {
+      updateState({ browseIndex: 0 }); // wrap from true last to first image
+      return;
+    }
+    if (index < items.length - 1) {
+      updateState({ browseIndex: index + 1 });
+      return;
+    }
+    // At the loaded end but more pages remain: load the next page, then advance.
+    const result = await fetchNextPage();
+    const pages = result.data?.pages;
+    if (!pages) return;
+    const newItemsLen = pages.reduce((n, p) => n + p.items.length, 0);
+    updateState({ browseIndex: Math.min(index + 1, newItemsLen - 1) });
+  };
+
   const goHome = () => goTo(0);
 
   const handleDeleteConfirm = () => {
@@ -128,6 +173,10 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
         case 'Home':
           e.preventDefault();
           goHome();
+          break;
+        case 'End':
+          e.preventDefault();
+          goEnd();
           break;
         case 'Delete':
           e.preventDefault();
@@ -228,7 +277,6 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
               className={Classes.MINIMAL}
               icon="chevron-left"
               onClick={goPrev}
-              disabled={atStart}
               title="Previous (Arrow Left)"
             />
           </Tooltip>
@@ -237,7 +285,6 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
               className={Classes.MINIMAL}
               icon="chevron-right"
               onClick={goNext}
-              disabled={atEnd}
               title="Next (Arrow Right)"
             />
           </Tooltip>
@@ -248,6 +295,15 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
               onClick={goHome}
               disabled={atStart}
               title="First (Home)"
+            />
+          </Tooltip>
+          <Tooltip content="Last (End)">
+            <Button
+              className={Classes.MINIMAL}
+              icon="fast-forward"
+              onClick={goEnd}
+              disabled={atEnd}
+              title="Last (End)"
             />
           </Tooltip>
 
