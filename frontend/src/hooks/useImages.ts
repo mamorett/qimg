@@ -1,6 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { fetchImages, fetchDirs, fetchMetadata, fetchVersion, deleteImage, fetchBuckets, fetchStorageMode } from '../api/client';
-import { ImagesQuery } from '../api/types';
+import { ImageItem, ImagesQuery, ImagesResponse } from '../api/types';
 
 export function useInfiniteImages(params: ImagesQuery) {
   const { dir, sort, order, q, ext, size } = params;
@@ -78,11 +78,36 @@ export function useDeleteImage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (path: string) => deleteImage(path),
-    onSuccess: () => {
-      qc.removeQueries({ queryKey: ['images'] });
+    onSuccess: (_, deletedPath) => {
+      qc.setQueriesData(
+        { queryKey: ['images'] },
+        (oldData: any) => {
+          if (!oldData) return oldData;
+          if (oldData.pages && Array.isArray(oldData.pages)) {
+            return {
+              ...oldData,
+              pages: oldData.pages.map((page: ImagesResponse) => ({
+                ...page,
+                items: page.items.filter((item: ImageItem) => item.path !== deletedPath),
+                total: Math.max(0, page.total - 1),
+              })),
+            };
+          }
+          if (Array.isArray(oldData.items)) {
+            return {
+              ...oldData,
+              items: oldData.items.filter((item: ImageItem) => item.path !== deletedPath),
+              total: Math.max(0, oldData.total - 1),
+            };
+          }
+          return oldData;
+        }
+      );
+      qc.removeQueries({ queryKey: ['metadata', deletedPath] });
       qc.invalidateQueries({ queryKey: ['images'] });
       qc.invalidateQueries({ queryKey: ['dirs'] });
     },
   });
 }
+
 

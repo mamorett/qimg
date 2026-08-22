@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Tabs, Tab, Card, Tag, Button, TextArea, NonIdealState, H5, Intent, Collapse, ButtonGroup } from '@blueprintjs/core';
+import { Tabs, Tab, Card, Tag, Button, TextArea, NonIdealState, H5, Collapse, ButtonGroup } from '@blueprintjs/core';
 import ReactMarkdown from 'react-markdown';
 import { PNGMetadata } from '../api/types';
-import { showToaster } from './Toast';
+import { copyToClipboard } from '../utils/clipboard';
 
 interface PromptPanelProps {
   png: PNGMetadata;
@@ -14,18 +14,12 @@ export const PromptPanel: React.FC<PromptPanelProps> = ({ png }) => {
   const [viewModes, setViewModes] = useState<Record<number, 'markdown' | 'raw'>>({});
 
   const handleCopy = (text: string, label: string = 'Prompt') => {
-    navigator.clipboard.writeText(text);
-    showToaster({
-      message: `${label} copied to clipboard`,
-      intent: Intent.SUCCESS,
-      icon: 'clipboard',
-      timeout: 2000,
-    });
+    copyToClipboard(text, label);
   };
 
   const handleCopyAllPrompts = () => {
     const allText = png.prompts.map((p) => p.text).join('\n\n');
-    handleCopy(allText, 'All prompts');
+    copyToClipboard(allText, 'All prompts');
   };
 
   const toggleCollapse = (key: string) => {

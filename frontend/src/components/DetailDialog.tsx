@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { useImageMetadata, useDeleteImage } from '../hooks/useImages';
 import { formatBytes } from './ImageCard';
 import { showToaster } from './Toast';
+import { copyToClipboard } from '../utils/clipboard';
 
 interface DetailDialogProps {
   filePath: string | null;
@@ -35,37 +36,6 @@ export const DetailDialog: React.FC<DetailDialogProps> = ({ filePath, onClose })
         showToaster({ message: err?.message || `Failed to delete file "${fileName}"`, intent: Intent.DANGER, icon: 'error' });
       },
     });
-  };
-
-  const fallbackCopy = (text: string, onSuccess: () => void, onError: () => void) => {
-    try {
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      textArea.style.top = '0';
-      textArea.style.left = '0';
-      textArea.style.position = 'fixed';
-      textArea.style.opacity = '0';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
-      if (successful) onSuccess();
-      else onError();
-    } catch {
-      onError();
-    }
-  };
-
-  const copyToClipboard = (text: string, label: string = 'text') => {
-    const onSuccess = () => showToaster({ message: `Copied ${label} to clipboard`, intent: Intent.SUCCESS, icon: 'clipboard', timeout: 2000 });
-    const onError = () => showToaster({ message: 'Failed to copy to clipboard', intent: Intent.DANGER, icon: 'error' });
-
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-      navigator.clipboard.writeText(text).then(onSuccess).catch(() => fallbackCopy(text, onSuccess, onError));
-    } else {
-      fallbackCopy(text, onSuccess, onError);
-    }
   };
 
   const toggleMarkdown = (key: string) => {

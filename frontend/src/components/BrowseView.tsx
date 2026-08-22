@@ -13,9 +13,12 @@ import {
   NavbarGroup,
   NavbarDivider,
 } from '@blueprintjs/core';
+import { useQueryClient } from '@tanstack/react-query';
 import { useInfiniteImages, useDeleteImage } from '../hooks/useImages';
 import { UrlState } from '../hooks/useUrlState';
+import { fetchMetadata } from '../api/client';
 import { showToaster } from './Toast';
+import { copyToClipboard } from '../utils/clipboard';
 
 interface BrowseViewProps {
   state: UrlState;
@@ -23,6 +26,7 @@ interface BrowseViewProps {
 }
 
 export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) => {
+  const qc = useQueryClient();
   const {
     data,
     isLoading,
@@ -36,6 +40,7 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
 
   const deleteMutation = useDeleteImage();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isCopyingPrompt, setIsCopyingPrompt] = useState(false);
 
   const items = useMemo(
     () => (data ? data.pages.flatMap((page) => page.items) : []),
@@ -215,6 +220,49 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
     if (current) updateState({ file: current.path });
   };
 
+  const handleCopyPrompt = async () => {
+    if (!current) return;
+    if (!current.isPng) {
+      showToaster({
+        message: 'Prompt extraction is only available for PNG images',
+        intent: Intent.WARNING,
+        icon: 'warning-sign',
+        timeout: 2500,
+      });
+      return;
+    }
+
+    setIsCopyingPrompt(true);
+    try {
+      const meta = await qc.ensureQueryData({
+        queryKey: ['metadata', current.path],
+        queryFn: () => fetchMetadata(current.path),
+        staleTime: 30000,
+      });
+
+      const firstPrompt = meta.png?.prompts?.[0]?.text;
+      if (firstPrompt && firstPrompt.trim()) {
+        copyToClipboard(firstPrompt.trim(), `prompt`);
+      } else {
+        showToaster({
+          message: meta.png?.extractionError || 'No prompts found in image',
+          intent: Intent.WARNING,
+          icon: 'warning-sign',
+          timeout: 2500,
+        });
+      }
+    } catch (err: any) {
+      showToaster({
+        message: err?.message || 'Failed to extract prompt',
+        intent: Intent.DANGER,
+        icon: 'error',
+        timeout: 2500,
+      });
+    } finally {
+      setIsCopyingPrompt(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="browse-view">
@@ -325,6 +373,15 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
 
           <NavbarDivider />
 
+          <Tooltip content={current?.isPng ? 'Copy prompt (first prompt)' : 'Copy prompt (PNG only)'}>
+            <Button
+              className={Classes.MINIMAL}
+              icon="clipboard"
+              loading={isCopyingPrompt}
+              onClick={handleCopyPrompt}
+              title="Copy prompt"
+            />
+          </Tooltip>
           <Tooltip content="Open details">
             <Button
               className={Classes.MINIMAL}
