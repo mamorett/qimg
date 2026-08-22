@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
-import { OverlayToaster, Intent } from '@blueprintjs/core';
+import { Intent } from '@blueprintjs/core';
 import { useUrlState } from './hooks/useUrlState';
 import { AppNavbar } from './components/AppNavbar';
 import { Sidebar } from './components/Sidebar';
@@ -8,7 +8,7 @@ import { ImageGrid } from './components/ImageGrid';
 import { BrowseView } from './components/BrowseView';
 import { DetailDialog } from './components/DetailDialog';
 import { AboutDialog } from './components/AboutDialog';
-import { setToasterRef, showToaster } from './components/Toast';
+import { showToaster } from './components/Toast';
 
 const queryClient = new QueryClient();
 
@@ -50,10 +50,10 @@ function MainApp() {
     localStorage.setItem('qimg-fit-mode', fitMode);
   }, [fitMode]);
 
-  const handleRefresh = () => {
-    qc.removeQueries({ queryKey: ['images'] });
-    qc.invalidateQueries({ queryKey: ['images'] });
-    qc.invalidateQueries({ queryKey: ['dirs'] });
+  const handleRefresh = async () => {
+    await qc.resetQueries({ queryKey: ['images'] });
+    await qc.refetchQueries({ queryKey: ['images'] });
+    await qc.refetchQueries({ queryKey: ['dirs'] });
     showToaster({
       message: 'Image list refreshed',
       intent: Intent.SUCCESS,
@@ -113,8 +113,6 @@ function MainApp() {
         isOpen={isAboutOpen}
         onClose={() => setIsAboutOpen(false)}
       />
-
-      <OverlayToaster ref={(ref) => setToasterRef(ref)} position="top-right" />
     </div>
   );
 }
@@ -126,3 +124,4 @@ export default function App() {
     </QueryClientProvider>
   );
 }
+

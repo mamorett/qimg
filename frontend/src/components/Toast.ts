@@ -1,13 +1,20 @@
-import { Toaster, ToastProps } from '@blueprintjs/core';
+import { OverlayToaster, Position, ToastProps, Toaster } from '@blueprintjs/core';
 
-let toasterInstance: Toaster | null = null;
+let toasterPromise: Promise<Toaster> | null = null;
 
-export function setToasterRef(ref: Toaster | null) {
-  toasterInstance = ref;
+function getToaster(): Promise<Toaster> {
+  if (!toasterPromise && typeof window !== 'undefined') {
+    toasterPromise = OverlayToaster.create({ position: Position.TOP_RIGHT });
+  }
+  return toasterPromise || Promise.reject(new Error('Window is not defined'));
 }
 
-export function showToaster(props: ToastProps) {
-  if (toasterInstance) {
-    toasterInstance.show(props);
+export async function showToaster(props: ToastProps): Promise<string | undefined> {
+  try {
+    const toaster = await getToaster();
+    return toaster.show(props);
+  } catch (err) {
+    console.error('Failed to show toast notification:', err);
+    return undefined;
   }
 }

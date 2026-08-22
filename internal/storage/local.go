@@ -77,6 +77,7 @@ func (l *LocalStorage) resolve(rel string) (string, error) {
 		if err != nil || relFromEval == ".." || strings.HasPrefix(relFromEval, ".."+string(os.PathSeparator)) {
 			return "", errors.New("symlink traversal rejected")
 		}
+		return evalTarget, nil
 	}
 
 	return absTarget, nil
