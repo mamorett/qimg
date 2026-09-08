@@ -44,7 +44,8 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
 
   const handleBucketChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedBucket = e.target.value;
-    updateState({ dir: selectedBucket ? selectedBucket : '.', page: 1 });
+    updateState({ dir: selectedBucket ? selectedBucket : '.', page: 1, browseIndex: 0 });
+    e.currentTarget.blur();
   };
 
   return (
@@ -82,7 +83,12 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
           placeholder="Search files..."
           small
           value={state.q || ''}
-          onChange={(e) => updateState({ q: e.target.value, page: 1 })}
+          onChange={(e) => updateState({ q: e.target.value, page: 1, browseIndex: 0 })}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === 'Escape') {
+              (e.target as HTMLElement).blur();
+            }
+          }}
           style={{ width: '180px' }}
         />
 
@@ -92,7 +98,10 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
           <HTMLSelect
             minimal
             value={state.sort || 'name'}
-            onChange={(e) => updateState({ sort: e.target.value as UrlState['sort'], page: 1 })}
+            onChange={(e) => {
+              updateState({ sort: e.target.value as UrlState['sort'], page: 1, browseIndex: 0 });
+              e.currentTarget.blur();
+            }}
             options={[
               { label: 'Name', value: 'name' },
               { label: 'Date', value: 'mtime' },
@@ -105,7 +114,10 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
         <HTMLSelect
           minimal
           value={state.order || 'asc'}
-          onChange={(e) => updateState({ order: e.target.value as UrlState['order'], page: 1 })}
+          onChange={(e) => {
+            updateState({ order: e.target.value as UrlState['order'], page: 1, browseIndex: 0 });
+            e.currentTarget.blur();
+          }}
           options={[
             { label: 'Asc ↗', value: 'asc' },
             { label: 'Desc ↘', value: 'desc' },

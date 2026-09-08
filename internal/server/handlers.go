@@ -72,21 +72,48 @@ func (s *Server) handleListImages(w http.ResponseWriter, r *http.Request) {
 		orderParam = "asc"
 	}
 
+	isDesc := strings.EqualFold(orderParam, "desc")
+
 	sort.Slice(items, func(i, j int) bool {
-		var less bool
 		switch sortParam {
-		case "mtime":
-			less = items[i].ModTime.Before(items[j].ModTime)
+		case "mtime", "date":
+			if !items[i].ModTime.Equal(items[j].ModTime) {
+				if isDesc {
+					return items[i].ModTime.After(items[j].ModTime)
+				}
+				return items[i].ModTime.Before(items[j].ModTime)
+			}
 		case "size":
-			less = items[i].Size < items[j].Size
-		default: // "name"
-			less = strings.ToLower(items[i].Name) < strings.ToLower(items[j].Name)
+			if items[i].Size != items[j].Size {
+				if isDesc {
+					return items[i].Size > items[j].Size
+				}
+				return items[i].Size < items[j].Size
+			}
+		case "name":
+			nameI := strings.ToLower(items[i].Name)
+			nameJ := strings.ToLower(items[j].Name)
+			if nameI != nameJ {
+				if isDesc {
+					return nameI > nameJ
+				}
+				return nameI < nameJ
+			}
 		}
 
-		if strings.EqualFold(orderParam, "desc") {
-			return !less
+		// Fallback tie-breaker to ensure stable, deterministic ordering
+		nameI := strings.ToLower(items[i].Name)
+		nameJ := strings.ToLower(items[j].Name)
+		if nameI != nameJ {
+			if isDesc {
+				return nameI > nameJ
+			}
+			return nameI < nameJ
 		}
-		return less
+		if isDesc {
+			return items[i].Path > items[j].Path
+		}
+		return items[i].Path < items[j].Path
 	})
 
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))

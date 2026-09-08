@@ -63,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ state, updateState }) => {
               key={d.path}
               className={`dir-item ${isActive ? 'active' : ''}`}
               style={{ paddingLeft: `${8 + indent}px` }}
-              onClick={() => updateState({ dir: d.path, page: 1 })}
+              onClick={() => updateState({ dir: d.path, page: 1, browseIndex: 0 })}
             >
               <Icon
                 icon={isActive ? 'folder-open' : 'folder-close'}

@@ -151,6 +151,41 @@ func TestServerHandlers(t *testing.T) {
 		if listQ.Total != 1 || listQ.Items[0].Name != "test1.png" {
 			t.Errorf("expected test1.png, got %+v", listQ)
 		}
+
+		// Sort by name asc & desc
+		resAsc, err := http.Get(ts.URL + "/api/images?dir=.&sort=name&order=asc")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resAsc.Body.Close()
+		var listAsc ImageListResponse
+		_ = json.NewDecoder(resAsc.Body).Decode(&listAsc)
+		if len(listAsc.Items) != 2 || listAsc.Items[0].Name != "test1.png" || listAsc.Items[1].Name != "test2.jpg" {
+			t.Errorf("expected [test1.png, test2.jpg], got %+v", listAsc.Items)
+		}
+
+		resDesc, err := http.Get(ts.URL + "/api/images?dir=.&sort=name&order=desc")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resDesc.Body.Close()
+		var listDesc ImageListResponse
+		_ = json.NewDecoder(resDesc.Body).Decode(&listDesc)
+		if len(listDesc.Items) != 2 || listDesc.Items[0].Name != "test2.jpg" || listDesc.Items[1].Name != "test1.png" {
+			t.Errorf("expected [test2.jpg, test1.png], got %+v", listDesc.Items)
+		}
+
+		// Sort by size
+		resSizeDesc, err := http.Get(ts.URL + "/api/images?dir=.&sort=size&order=desc")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resSizeDesc.Body.Close()
+		var listSizeDesc ImageListResponse
+		_ = json.NewDecoder(resSizeDesc.Body).Decode(&listSizeDesc)
+		if len(listSizeDesc.Items) != 2 || listSizeDesc.Items[0].Size < listSizeDesc.Items[1].Size {
+			t.Errorf("expected desc size ordering, got %+v", listSizeDesc.Items)
+		}
 	})
 
 	// 3. GET /api/dirs
