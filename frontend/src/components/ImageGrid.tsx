@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Spinner, NonIdealState, Button } from '@blueprintjs/core';
 import { useInfiniteImages } from '../hooks/useImages';
-import { UrlState } from '../hooks/useUrlState';
+import { UrlState, clearSearchFilters, countActiveFilters } from '../hooks/useUrlState';
 import { ImageCard } from './ImageCard';
 
 interface ImageGridProps {
@@ -36,7 +36,26 @@ export const ImageGrid: React.FC<ImageGridProps> = ({ state, updateState, onSele
     if (mainEl) {
       mainEl.scrollTop = 0;
     }
-  }, [state.dir, state.q, state.sort, state.order, state.size, state.ext]);
+  }, [
+    state.dir,
+    state.q,
+    state.sort,
+    state.order,
+    state.size,
+    state.ext,
+    state.recursive,
+    state.prompt,
+    state.meta,
+    state.pathFilter,
+    state.name,
+    state.fields,
+    state.aspect,
+    state.hasPrompt,
+    state.minSize,
+    state.maxSize,
+    state.fromDate,
+    state.toDate,
+  ]);
 
   // IntersectionObserver for continuous scroll
   useEffect(() => {
@@ -96,8 +115,8 @@ export const ImageGrid: React.FC<ImageGridProps> = ({ state, updateState, onSele
           title="No images found"
           description="Try selecting a different directory or adjusting your search filters."
           action={
-            state.q || state.ext ? (
-              <Button icon="reset" onClick={() => updateState({ q: '', ext: '', page: 1 })}>
+            state.q || countActiveFilters(state) > 0 ? (
+              <Button icon="reset" onClick={() => clearSearchFilters(updateState)}>
                 Clear Filters
               </Button>
             ) : undefined

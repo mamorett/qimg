@@ -1,3 +1,5 @@
+export type SearchField = 'name' | 'path' | 'prompt' | 'meta';
+
 export interface ImageItem {
   path: string;
   name: string;
@@ -5,14 +7,28 @@ export interface ImageItem {
   size: number;
   modTime: string;
   isPng: boolean;
+  matchedFields?: string[];
+  promptSnippet?: string;
 }
 
 export interface ImagesQuery {
   dir?: string;
-  sort?: 'name' | 'mtime' | 'size';
+  recursive?: boolean;
+  sort?: 'name' | 'mtime' | 'size' | 'path';
   order?: 'asc' | 'desc';
   q?: string;
+  fields?: string;
+  name?: string;
+  pathFilter?: string;
+  prompt?: string;
+  meta?: string;
   ext?: string;
+  minSize?: number;
+  maxSize?: number;
+  fromDate?: string;
+  toDate?: string;
+  aspect?: string;
+  hasPrompt?: boolean;
   page?: number;
   size?: number;
 }

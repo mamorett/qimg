@@ -8,12 +8,14 @@ import (
 )
 
 type ImageItem struct {
-	Path    string    `json:"path"`
-	Name    string    `json:"name"`
-	Ext     string    `json:"ext"`
-	Size    int64     `json:"size"`
-	ModTime time.Time `json:"modTime"`
-	IsPng   bool      `json:"isPng"`
+	Path          string    `json:"path"`
+	Name          string    `json:"name"`
+	Ext           string    `json:"ext"`
+	Size          int64     `json:"size"`
+	ModTime       time.Time `json:"modTime"`
+	IsPng         bool      `json:"isPng"`
+	MatchedFields []string  `json:"matchedFields,omitempty"`
+	PromptSnippet string    `json:"promptSnippet,omitempty"`
 }
 
 type DirItem struct {
@@ -35,7 +37,7 @@ type FileDetails struct {
 
 type Storage interface {
 	// ListImages lists media items under dir matching filter params
-	ListImages(dir string, q string, extFilter map[string]bool) ([]ImageItem, error)
+	ListImages(dir string, q string, extFilter map[string]bool, recursive ...bool) ([]ImageItem, error)
 
 	// ListDirs lists child or recursive directories under dir
 	ListDirs(dir string, recursive bool) ([]DirItem, error)

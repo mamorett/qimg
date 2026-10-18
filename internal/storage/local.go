@@ -22,6 +22,9 @@ func NewLocalStorage(root, cacheDir string) (*LocalStorage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid root directory: %w", err)
 	}
+	if evalRoot, err := filepath.EvalSymlinks(absRoot); err == nil {
+		absRoot = evalRoot
+	}
 	st, err := os.Stat(absRoot)
 	if err != nil || !st.IsDir() {
 		return nil, fmt.Errorf("root path does not exist or is not a directory: %s", absRoot)
@@ -83,7 +86,7 @@ func (l *LocalStorage) resolve(rel string) (string, error) {
 	return absTarget, nil
 }
 
-func (l *LocalStorage) ListImages(dir string, q string, extFilter map[string]bool) ([]ImageItem, error) {
+func (l *LocalStorage) ListImages(dir string, q string, extFilter map[string]bool, recursive ...bool) ([]ImageItem, error) {
 	absDir, err := l.resolve(dir)
 	if err != nil {
 		return nil, err
@@ -92,6 +95,77 @@ func (l *LocalStorage) ListImages(dir string, q string, extFilter map[string]boo
 	st, err := os.Stat(absDir)
 	if err != nil || !st.IsDir() {
 		return nil, errors.New("directory not found")
+	}
+
+	isRecursive := len(recursive) > 0 && recursive[0]
+	if isRecursive {
+		var items []ImageItem
+		err := filepath.WalkDir(absDir, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if d.IsDir() {
+				if strings.HasPrefix(d.Name(), ".") && p != absDir {
+					return filepath.SkipDir
+				}
+				if l.cacheDir != "" && p == l.cacheDir {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if strings.HasPrefix(d.Name(), ".") {
+				return nil
+			}
+			ext := filepath.Ext(d.Name())
+			if !IsSupportedMedia(ext) {
+				return nil
+			}
+
+			rel, err := filepath.Rel(l.root, p)
+			if err != nil {
+				if evalP, errEval := filepath.EvalSymlinks(p); errEval == nil {
+					rel, err = filepath.Rel(l.root, evalP)
+				}
+				if err != nil {
+					return nil
+				}
+			}
+			relPath := filepath.ToSlash(rel)
+
+			if q != "" {
+				nameMatch := strings.Contains(strings.ToLower(d.Name()), q)
+				pathMatch := strings.Contains(strings.ToLower(relPath), q)
+				if !nameMatch && !pathMatch {
+					return nil
+				}
+			}
+
+			if len(extFilter) > 0 && !extFilter[strings.ToLower(ext)] {
+				return nil
+			}
+
+			info, err := d.Info()
+			if err != nil {
+				return nil
+			}
+
+			items = append(items, ImageItem{
+				Path:    relPath,
+				Name:    d.Name(),
+				Ext:     ext,
+				Size:    info.Size(),
+				ModTime: info.ModTime(),
+				IsPng:   strings.EqualFold(ext, ".png"),
+			})
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to walk directory: %w", err)
+		}
+		if items == nil {
+			items = []ImageItem{}
+		}
+		return items, nil
 	}
 
 	entries, err := os.ReadDir(absDir)
@@ -143,6 +217,9 @@ func (l *LocalStorage) ListImages(dir string, q string, extFilter map[string]boo
 			ModTime: info.ModTime(),
 			IsPng:   strings.EqualFold(ext, ".png"),
 		})
+	}
+	if items == nil {
+		items = []ImageItem{}
 	}
 	return items, nil
 }

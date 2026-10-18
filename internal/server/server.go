@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/mamorett/qimg/frontend"
+	"github.com/mamorett/qimg/internal/index"
 	"github.com/mamorett/qimg/internal/storage"
 )
 
@@ -21,6 +22,7 @@ type Config struct {
 type Server struct {
 	config  Config
 	storage storage.Storage
+	index   *index.Index
 	mux     *http.ServeMux
 }
 
@@ -43,9 +45,12 @@ func New(cfg Config) (*Server, error) {
 		st = ls
 	}
 
+	idx := index.New(cfg.CacheDir)
+
 	s := &Server{
 		config:  cfg,
 		storage: st,
+		index:   idx,
 		mux:     http.NewServeMux(),
 	}
 

@@ -165,6 +165,19 @@ export const ImageCard: React.FC<ImageCardProps> = ({ image, onClick }) => {
           {image.name}
         </div>
 
+        {image.path.includes('/') && (
+          <div className="image-card-subpath" title={image.path}>
+            <Icon icon="folder-close" size={11} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+            {image.path.substring(0, image.path.lastIndexOf('/'))}
+          </div>
+        )}
+
+        {image.promptSnippet && (
+          <div className="image-card-snippet" title={image.promptSnippet}>
+            {image.promptSnippet}
+          </div>
+        )}
+
         <div
           className="image-card-tags"
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '24px' }}
@@ -185,6 +198,16 @@ export const ImageCard: React.FC<ImageCardProps> = ({ image, onClick }) => {
             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
               {formatBytes(image.size)}
             </span>
+            {image.matchedFields?.includes('prompt') && (
+              <Tag minimal intent={Intent.SUCCESS} style={{ fontSize: '0.65rem' }}>
+                Prompt
+              </Tag>
+            )}
+            {image.matchedFields?.includes('meta') && (
+              <Tag minimal intent={Intent.WARNING} style={{ fontSize: '0.65rem' }}>
+                Meta
+              </Tag>
+            )}
           </div>
 
           <div

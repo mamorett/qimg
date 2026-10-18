@@ -8,6 +8,7 @@ import { ImageGrid } from './components/ImageGrid';
 import { BrowseView } from './components/BrowseView';
 import { DetailDialog } from './components/DetailDialog';
 import { AboutDialog } from './components/AboutDialog';
+import { AdvancedSearchPanel } from './components/AdvancedSearchPanel';
 import { showToaster } from './components/Toast';
 
 const queryClient = new QueryClient();
@@ -16,6 +17,7 @@ function MainApp() {
   const { state, updateState } = useUrlState();
   const qc = useQueryClient();
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
   const [theme, setTheme] = useState<'editorial' | 'dark-nord'>(() => {
     return (localStorage.getItem('qimg-theme') as 'editorial' | 'dark-nord') || 'editorial';
@@ -87,11 +89,19 @@ function MainApp() {
         onToggleFitMode={toggleFitMode}
         view={isBrowse ? 'browse' : 'grid'}
         onViewChange={(v) => updateState({ view: v, browseIndex: v === 'browse' ? 0 : state.browseIndex })}
+        isAdvancedOpen={isAdvancedOpen}
+        onToggleAdvanced={() => setIsAdvancedOpen((prev) => !prev)}
       />
 
       <div className="app-layout">
         <Sidebar state={state} updateState={updateState} />
         <main className={`main-content${isBrowse ? ' main-content--browse' : ''}`}>
+          <AdvancedSearchPanel
+            state={state}
+            updateState={updateState}
+            isOpen={isAdvancedOpen}
+            onToggle={() => setIsAdvancedOpen((prev) => !prev)}
+          />
           {isBrowse ? (
             <BrowseView state={state} updateState={updateState} />
           ) : (

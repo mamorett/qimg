@@ -35,44 +35,18 @@ func writeError(w http.ResponseWriter, status int, message string) {
 }
 
 func (s *Server) handleListImages(w http.ResponseWriter, r *http.Request) {
-	dirParam := r.URL.Query().Get("dir")
-	if dirParam == "" {
-		dirParam = "."
-	}
+	searchParams := parseSearchParams(r.URL.Query())
 
-	q := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
-
-	extParam := r.URL.Query().Get("ext")
-	var extFilter map[string]bool
-	if extParam != "" {
-		extFilter = make(map[string]bool)
-		for _, e := range strings.Split(extParam, ",") {
-			e = strings.ToLower(strings.TrimSpace(e))
-			if e != "" {
-				if !strings.HasPrefix(e, ".") {
-					e = "." + e
-				}
-				extFilter[e] = true
-			}
-		}
-	}
-
-	items, err := s.storage.ListImages(dirParam, q, extFilter)
+	rawItems, err := s.storage.ListImages(searchParams.Dir, "", nil, searchParams.Recursive)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
 
-	sortParam := r.URL.Query().Get("sort")
-	orderParam := r.URL.Query().Get("order")
-	if sortParam == "" {
-		sortParam = "name"
-	}
-	if orderParam == "" {
-		orderParam = "asc"
-	}
+	items := filterImages(r.Context(), rawItems, searchParams, s.index, s.storage.GetLocalFile)
 
-	isDesc := strings.EqualFold(orderParam, "desc")
+	sortParam := searchParams.Sort
+	isDesc := strings.EqualFold(searchParams.Order, "desc")
 
 	sort.Slice(items, func(i, j int) bool {
 		switch sortParam {
@@ -89,6 +63,15 @@ func (s *Server) handleListImages(w http.ResponseWriter, r *http.Request) {
 					return items[i].Size > items[j].Size
 				}
 				return items[i].Size < items[j].Size
+			}
+		case "path":
+			pathI := strings.ToLower(items[i].Path)
+			pathJ := strings.ToLower(items[j].Path)
+			if pathI != pathJ {
+				if isDesc {
+					return pathI > pathJ
+				}
+				return pathI < pathJ
 			}
 		case "name":
 			nameI := strings.ToLower(items[i].Name)
@@ -116,18 +99,8 @@ func (s *Server) handleListImages(w http.ResponseWriter, r *http.Request) {
 		return items[i].Path < items[j].Path
 	})
 
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	if page < 1 {
-		page = 1
-	}
-
-	size, _ := strconv.Atoi(r.URL.Query().Get("size"))
-	if size < 1 {
-		size = 60
-	}
-	if size > 500 {
-		size = 500
-	}
+	page := searchParams.Page
+	size := searchParams.Size
 
 	total := len(items)
 	start := (page - 1) * size
@@ -142,7 +115,7 @@ func (s *Server) handleListImages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, ImageListResponse{
-		Dir:   dirParam,
+		Dir:   searchParams.Dir,
 		Items: pagedItems,
 		Total: total,
 		Page:  page,
@@ -329,6 +302,10 @@ func (s *Server) handleDeleteImage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+
+	if s.index != nil {
+		s.index.Delete(relPath)
 	}
 
 	writeJSON(w, http.StatusOK, DeleteResponse{

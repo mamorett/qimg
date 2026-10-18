@@ -120,18 +120,39 @@ func (s *S3Storage) resolveBucketAndKey(relPath string) (string, string, error) 
 	return parts[0], parts[1], nil
 }
 
-func (s *S3Storage) ListImages(dir string, q string, extFilter map[string]bool) ([]ImageItem, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+func (s *S3Storage) ListImages(dir string, q string, extFilter map[string]bool, recursive ...bool) ([]ImageItem, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	isRecursive := len(recursive) > 0 && recursive[0]
 
 	bucket, prefix := s.resolveBucketAndPrefix(dir)
 	if bucket == "" {
+		if isRecursive {
+			bl, err := s.client.ListBuckets(ctx)
+			if err != nil {
+				return []ImageItem{}, nil
+			}
+			var allItems []ImageItem
+			for _, b := range bl {
+				bItems, _ := s.listBucketImages(ctx, b.Name, "", q, extFilter, true)
+				allItems = append(allItems, bItems...)
+			}
+			if allItems == nil {
+				allItems = []ImageItem{}
+			}
+			return allItems, nil
+		}
 		return []ImageItem{}, nil
 	}
 
+	return s.listBucketImages(ctx, bucket, prefix, q, extFilter, isRecursive)
+}
+
+func (s *S3Storage) listBucketImages(ctx context.Context, bucket, prefix, q string, extFilter map[string]bool, isRecursive bool) ([]ImageItem, error) {
 	opts := minio.ListObjectsOptions{
 		Prefix:    prefix,
-		Recursive: false,
+		Recursive: isRecursive,
 	}
 
 	var items []ImageItem
@@ -150,17 +171,21 @@ func (s *S3Storage) ListImages(dir string, q string, extFilter map[string]bool) 
 			continue
 		}
 
-		if q != "" && !strings.Contains(strings.ToLower(name), q) {
-			continue
+		relPath := obj.Key
+		if s.config.Bucket == "" {
+			relPath = bucket + "/" + obj.Key
+		}
+
+		if q != "" {
+			nameMatch := strings.Contains(strings.ToLower(name), q)
+			pathMatch := strings.Contains(strings.ToLower(relPath), q)
+			if !nameMatch && !pathMatch {
+				continue
+			}
 		}
 
 		if len(extFilter) > 0 && !extFilter[strings.ToLower(ext)] {
 			continue
-		}
-
-		relPath := obj.Key
-		if s.config.Bucket == "" {
-			relPath = bucket + "/" + obj.Key
 		}
 
 		items = append(items, ImageItem{
@@ -171,6 +196,9 @@ func (s *S3Storage) ListImages(dir string, q string, extFilter map[string]bool) 
 			ModTime: obj.LastModified,
 			IsPng:   strings.EqualFold(ext, ".png"),
 		})
+	}
+	if items == nil {
+		items = []ImageItem{}
 	}
 	return items, nil
 }
