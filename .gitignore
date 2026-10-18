@@ -11,6 +11,7 @@ frontend/dist/*
 # OS metadata
 .DS_Store
 Thumbs.db
+enhanced_search.md
 
 # Cache
 .cache/

@@ -186,6 +186,81 @@ func TestServerHandlers(t *testing.T) {
 		if len(listSizeDesc.Items) != 2 || listSizeDesc.Items[0].Size < listSizeDesc.Items[1].Size {
 			t.Errorf("expected desc size ordering, got %+v", listSizeDesc.Items)
 		}
+
+		// Recursive search
+		resRec, err := http.Get(ts.URL + "/api/images?dir=.&recursive=true")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resRec.Body.Close()
+		var listRec ImageListResponse
+		_ = json.NewDecoder(resRec.Body).Decode(&listRec)
+		if listRec.Total != 3 {
+			t.Errorf("expected 3 items recursively, got %d", listRec.Total)
+		}
+
+		// Sort by path
+		resPathSort, err := http.Get(ts.URL + "/api/images?dir=.&recursive=true&sort=path&order=asc")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resPathSort.Body.Close()
+		var listPathSort ImageListResponse
+		_ = json.NewDecoder(resPathSort.Body).Decode(&listPathSort)
+		if len(listPathSort.Items) != 3 || listPathSort.Items[0].Path != "sub/nested.png" {
+			t.Errorf("expected sub/nested.png to be first by path asc, got %+v", listPathSort.Items)
+		}
+
+		// Search by prompt filter
+		resPrompt, err := http.Get(ts.URL + "/api/images?dir=.&recursive=true&prompt=sunset")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resPrompt.Body.Close()
+		var listPrompt ImageListResponse
+		_ = json.NewDecoder(resPrompt.Body).Decode(&listPrompt)
+		if listPrompt.Total != 1 || listPrompt.Items[0].Name != "test1.png" {
+			t.Errorf("expected test1.png for prompt=sunset, got %+v", listPrompt)
+		}
+		if listPrompt.Items[0].PromptSnippet == "" {
+			t.Errorf("expected PromptSnippet to be populated, got empty")
+		}
+
+		// Search by q with fields=all
+		resDeepQ, err := http.Get(ts.URL + "/api/images?dir=.&recursive=true&q=forest&fields=all")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resDeepQ.Body.Close()
+		var listDeepQ ImageListResponse
+		_ = json.NewDecoder(resDeepQ.Body).Decode(&listDeepQ)
+		if listDeepQ.Total != 1 || listDeepQ.Items[0].Name != "nested.png" {
+			t.Errorf("expected nested.png for q=forest fields=all, got %+v", listDeepQ)
+		}
+
+		// Search by inline tokens: prompt:sunset is:recursive
+		resInline, err := http.Get(ts.URL + "/api/images?dir=.&q=" + strings.ReplaceAll("prompt:sunset is:recursive", " ", "+"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resInline.Body.Close()
+		var listInline ImageListResponse
+		_ = json.NewDecoder(resInline.Body).Decode(&listInline)
+		if listInline.Total != 1 || listInline.Items[0].Name != "test1.png" {
+			t.Errorf("expected test1.png for prompt:sunset is:recursive, got %+v", listInline)
+		}
+
+		// Search by pathFilter
+		resPathFilter, err := http.Get(ts.URL + "/api/images?dir=.&recursive=true&pathFilter=sub")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resPathFilter.Body.Close()
+		var listPathFilter ImageListResponse
+		_ = json.NewDecoder(resPathFilter.Body).Decode(&listPathFilter)
+		if listPathFilter.Total != 1 || listPathFilter.Items[0].Name != "nested.png" {
+			t.Errorf("expected nested.png for pathFilter=sub, got %+v", listPathFilter)
+		}
 	})
 
 	// 3. GET /api/dirs

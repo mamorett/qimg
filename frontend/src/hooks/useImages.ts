@@ -3,8 +3,7 @@ import { fetchImages, fetchDirs, fetchMetadata, fetchVersion, deleteImage, fetch
 import { ImageItem, ImagesQuery, ImagesResponse } from '../api/types';
 
 export function useInfiniteImages(params: ImagesQuery) {
-  const { dir, sort, order, q, ext, size } = params;
-  const gridParams: ImagesQuery = { dir, sort, order, q, ext, size };
+  const { page: _p, ...gridParams } = params;
 
   return useInfiniteQuery({
     queryKey: ['images', gridParams],
@@ -22,12 +21,9 @@ export function useInfiniteImages(params: ImagesQuery) {
 }
 
 export function useImages(params: ImagesQuery) {
-  const { dir, sort, order, q, ext, page, size } = params;
-  const gridParams: ImagesQuery = { dir, sort, order, q, ext, page, size };
-
   return useQuery({
-    queryKey: ['images', gridParams],
-    queryFn: () => fetchImages(gridParams),
+    queryKey: ['images', params],
+    queryFn: () => fetchImages(params),
     staleTime: 30000,
     placeholderData: keepPreviousData,
   });

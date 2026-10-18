@@ -19,10 +19,22 @@ async function handleResponse<T>(res: Response): Promise<T> {
 export async function fetchImages(params: ImagesQuery): Promise<ImagesResponse> {
   const query = new URLSearchParams();
   if (params.dir) query.set('dir', params.dir);
+  if (params.recursive) query.set('recursive', 'true');
   if (params.sort) query.set('sort', params.sort);
   if (params.order) query.set('order', params.order);
   if (params.q) query.set('q', params.q);
+  if (params.fields) query.set('fields', params.fields);
+  if (params.name) query.set('name', params.name);
+  if (params.pathFilter) query.set('pathFilter', params.pathFilter);
+  if (params.prompt) query.set('prompt', params.prompt);
+  if (params.meta) query.set('meta', params.meta);
   if (params.ext) query.set('ext', params.ext);
+  if (params.minSize != null && params.minSize > 0) query.set('minSize', params.minSize.toString());
+  if (params.maxSize != null && params.maxSize > 0) query.set('maxSize', params.maxSize.toString());
+  if (params.fromDate) query.set('fromDate', params.fromDate);
+  if (params.toDate) query.set('toDate', params.toDate);
+  if (params.aspect) query.set('aspect', params.aspect);
+  if (params.hasPrompt !== undefined) query.set('hasPrompt', params.hasPrompt ? 'true' : 'false');
   if (params.page) query.set('page', params.page.toString());
   if (params.size) query.set('size', params.size.toString());
 

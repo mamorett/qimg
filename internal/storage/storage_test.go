@@ -63,6 +63,24 @@ func TestLocalStorage(t *testing.T) {
 		if len(itemsFiltered) != 1 || itemsFiltered[0].Name != "clip.mp4" {
 			t.Errorf("unexpected query filter result: %+v", itemsFiltered)
 		}
+
+		// Recursive ListImages
+		recItems, err := store.ListImages(".", "", nil, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(recItems) != 3 {
+			t.Errorf("expected 3 items recursively, got %d", len(recItems))
+		}
+
+		// Recursive ListImages with filter on nested file
+		recFiltered, err := store.ListImages(".", "nested", nil, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(recFiltered) != 1 || recFiltered[0].Name != "nested.jpg" || recFiltered[0].Path != "sub/nested.jpg" {
+			t.Errorf("unexpected recursive filter result: %+v", recFiltered)
+		}
 	})
 
 	t.Run("ListDirs", func(t *testing.T) {

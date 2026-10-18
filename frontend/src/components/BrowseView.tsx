@@ -15,7 +15,7 @@ import {
 } from '@blueprintjs/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useInfiniteImages, useDeleteImage } from '../hooks/useImages';
-import { UrlState } from '../hooks/useUrlState';
+import { UrlState, clearSearchFilters, countActiveFilters } from '../hooks/useUrlState';
 import { fetchMetadata } from '../api/client';
 import { showToaster } from './Toast';
 import { copyToClipboard } from '../utils/clipboard';
@@ -297,8 +297,8 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
             title="No images found"
             description="Try selecting a different directory or adjusting your search filters."
             action={
-              state.q || state.ext ? (
-                <Button icon="reset" onClick={() => updateState({ q: '', ext: '', page: 1 })}>
+              state.q || countActiveFilters(state) > 0 ? (
+                <Button icon="reset" onClick={() => clearSearchFilters(updateState)}>
                   Clear Filters
                 </Button>
               ) : undefined
