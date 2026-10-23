@@ -67,4 +67,40 @@ func TestGetThumbnail(t *testing.T) {
 	if thumbPath2 != thumbPath {
 		t.Errorf("expected cached path %s, got %s", thumbPath, thumbPath2)
 	}
+
+	// Forced call should regenerate
+	thumbPath3, err := Get(cacheDir, imgPath, 384, true)
+	if err != nil {
+		t.Fatalf("Get forced call failed: %v", err)
+	}
+	if _, err := os.Stat(thumbPath3); err != nil {
+		t.Errorf("expected regenerated thumbnail to exist: %v", err)
+	}
+}
+
+func TestTruncatedDecode(t *testing.T) {
+	tempDir := t.TempDir()
+	cacheDir := filepath.Join(tempDir, "cache")
+	imgDir := filepath.Join(tempDir, "images")
+	_ = os.MkdirAll(imgDir, 0755)
+
+	imgPath := filepath.Join(imgDir, "half.png")
+	srcImg := image.NewRGBA(image.Rect(0, 0, 400, 400))
+	for y := 0; y < 400; y++ {
+		for x := 0; x < 400; x++ {
+			srcImg.Set(x, y, color.RGBA{R: 0, G: 255, B: 0, A: 255})
+		}
+	}
+	f, _ := os.Create(imgPath)
+	_ = png.Encode(f, srcImg)
+	f.Close()
+
+	// Truncate to half
+	st, _ := os.Stat(imgPath)
+	_ = os.Truncate(imgPath, st.Size()/2)
+
+	_, err := Get(cacheDir, imgPath, 384)
+	if err == nil {
+		t.Fatalf("expected error on truncated image, got nil")
+	}
 }

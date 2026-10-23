@@ -245,18 +245,46 @@ func (s *Server) handleGetThumb(w http.ResponseWriter, r *http.Request) {
 	defer cleanup()
 
 	if s.config.CacheDir == "" {
-		http.Redirect(w, r, "/img/full/"+relPath, http.StatusFound)
+		http.Redirect(w, r, "/img/full/"+relPath, http.StatusTemporaryRedirect)
 		return
 	}
 
-	thumbPath, err := thumbs.Get(s.config.CacheDir, localPath, 384)
+	force := r.URL.Query().Get("reload") == "1" || r.URL.Query().Get("force") == "1"
+	thumbPath, err := thumbs.Get(s.config.CacheDir, localPath, 384, force)
 	if err != nil {
-		http.Redirect(w, r, "/img/full/"+relPath, http.StatusFound)
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		writeError(w, http.StatusUnprocessableEntity, "failed to generate thumbnail: "+err.Error())
 		return
 	}
 
-	w.Header().Set("Cache-Control", "public, max-age=86400")
-	http.ServeFile(w, r, thumbPath)
+	st, err := os.Stat(thumbPath)
+	if err != nil || st.Size() == 0 {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		writeError(w, http.StatusInternalServerError, "empty or missing thumbnail")
+		return
+	}
+
+	etag := fmt.Sprintf(`"%x-%x"`, st.ModTime().UnixNano(), st.Size())
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Accept-Ranges", "none") // Prevent partial-range stitching
+
+	if match := r.Header.Get("If-None-Match"); match == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("Content-Length", strconv.FormatInt(st.Size(), 10))
+	w.Header().Set("Cache-Control", "public, max-age=86400, no-transform")
+
+	f, err := os.Open(thumbPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer f.Close()
+
+	_, _ = io.Copy(w, f)
 }
 
 func (s *Server) handleGetFull(w http.ResponseWriter, r *http.Request) {

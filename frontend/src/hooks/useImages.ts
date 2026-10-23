@@ -2,8 +2,52 @@ import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousDa
 import { fetchImages, fetchDirs, fetchMetadata, fetchVersion, deleteImage, fetchBuckets, fetchStorageMode } from '../api/client';
 import { ImageItem, ImagesQuery, ImagesResponse } from '../api/types';
 
+function extractGridParams(params: ImagesQuery): Omit<ImagesQuery, 'page'> {
+  const {
+    dir,
+    recursive,
+    sort,
+    order,
+    q,
+    fields,
+    name,
+    pathFilter,
+    prompt,
+    meta,
+    ext,
+    minSize,
+    maxSize,
+    fromDate,
+    toDate,
+    aspect,
+    hasPrompt,
+    size,
+  } = params;
+
+  return {
+    dir,
+    recursive,
+    sort,
+    order,
+    q,
+    fields,
+    name,
+    pathFilter,
+    prompt,
+    meta,
+    ext,
+    minSize,
+    maxSize,
+    fromDate,
+    toDate,
+    aspect,
+    hasPrompt,
+    size,
+  };
+}
+
 export function useInfiniteImages(params: ImagesQuery) {
-  const { page: _p, ...gridParams } = params;
+  const gridParams = extractGridParams(params);
 
   return useInfiniteQuery({
     queryKey: ['images', gridParams],
@@ -21,9 +65,14 @@ export function useInfiniteImages(params: ImagesQuery) {
 }
 
 export function useImages(params: ImagesQuery) {
+  const queryParams: ImagesQuery = {
+    ...extractGridParams(params),
+    page: params.page,
+  };
+
   return useQuery({
-    queryKey: ['images', params],
-    queryFn: () => fetchImages(params),
+    queryKey: ['images', queryParams],
+    queryFn: () => fetchImages(queryParams),
     staleTime: 30000,
     placeholderData: keepPreviousData,
   });

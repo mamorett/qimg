@@ -50,6 +50,8 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
 
   const index = Math.min(Math.max(state.browseIndex ?? 0, 0), Math.max(items.length - 1, 0));
   const current = items[index];
+  const atStart = index === 0;
+  const atEnd = total > 0 ? index >= total - 1 : (items.length > 0 && index === items.length - 1 && !hasNextPage);
 
   // Fetch next page proactively when close to the end so navigation stays smooth.
   useEffect(() => {
@@ -59,12 +61,14 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
     }
   }, [index, items.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Clamp index when items change (e.g., after a delete).
+  // Clamp index when items change (e.g., after a delete or directory change).
   useEffect(() => {
     if (items.length === 0) return;
     const savedIndex = state.browseIndex ?? 0;
-    if (savedIndex !== index) {
-      updateState({ browseIndex: index });
+    if (savedIndex >= items.length) {
+      updateState({ browseIndex: Math.max(0, items.length - 1) });
+    } else if (savedIndex < 0) {
+      updateState({ browseIndex: 0 });
     }
   }, [items.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -78,6 +82,10 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
   // true last image (index `total - 1`).
   const goEnd = async () => {
     if (items.length === 0) return;
+    if (!hasNextPage) {
+      updateState({ browseIndex: Math.max(0, total > 0 ? total - 1 : items.length - 1) });
+      return;
+    }
     try {
       let more = true;
       while (more) {
@@ -91,7 +99,7 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
     } catch {
       // Fall through and jump to whatever pages are currently loaded.
     }
-    updateState({ browseIndex: total - 1 });
+    updateState({ browseIndex: Math.max(0, total > 0 ? total - 1 : items.length - 1) });
   };
 
   const goPrev = () => {
@@ -313,8 +321,6 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
     ? `/img/full/${current.path.split('/').map(encodeURIComponent).join('/')}`
     : '';
   const isVideo = current?.ext.toLowerCase() === '.mp4';
-  const atStart = index === 0;
-  const atEnd = index === items.length - 1 && !hasNextPage;
 
   return (
     <div className="browse-view">

@@ -10,6 +10,7 @@ import { copyToClipboard } from '../utils/clipboard';
 interface ImageCardProps {
   image: ImageItem;
   onClick: () => void;
+  refreshId?: number;
 }
 
 export function formatBytes(bytes: number): string {
@@ -20,17 +21,34 @@ export function formatBytes(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-export const ImageCard: React.FC<ImageCardProps> = ({ image, onClick }) => {
+export const ImageCard: React.FC<ImageCardProps> = ({ image, onClick, refreshId }) => {
   const [hasError, setHasError] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const qc = useQueryClient();
   const deleteMutation = useDeleteImage();
 
   const isVideo = image.ext.toLowerCase() === '.mp4';
   const fullUrl = `/img/full/${image.path.split('/').map(encodeURIComponent).join('/')}`;
-  const thumbUrl = `/img/thumb/${image.path.split('/').map(encodeURIComponent).join('/')}`;
+
+  const thumbBase = `/img/thumb/${image.path.split('/').map(encodeURIComponent).join('/')}`;
+  const queryParts: string[] = [];
+  if (image.modTime) queryParts.push(`m=${encodeURIComponent(image.modTime)}`);
+  if (image.size) queryParts.push(`s=${image.size}`);
+  if (refreshId) queryParts.push(`v=${refreshId}`);
+  if (reloadKey > 0) {
+    queryParts.push(`reload=1`);
+    queryParts.push(`t=${reloadKey}`);
+  }
+  const thumbUrl = queryParts.length > 0 ? `${thumbBase}?${queryParts.join('&')}` : thumbBase;
+
+  const handleReloadThumb = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setHasError(false);
+    setReloadKey(Date.now());
+  };
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -127,7 +145,26 @@ export const ImageCard: React.FC<ImageCardProps> = ({ image, onClick }) => {
               preload="metadata"
             />
           ) : hasError ? (
-            <Icon icon="media" size={32} style={{ color: 'var(--text-muted)' }} />
+            <div
+              className="image-card-error-state"
+              onClick={handleReloadThumb}
+              title="Thumbnail failed to load. Click to reload."
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '100%',
+                height: '100%',
+                minHeight: '120px',
+                cursor: 'pointer',
+                gap: '8px',
+                color: 'var(--text-muted)',
+              }}
+            >
+              <Icon icon="refresh" size={24} />
+              <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-sans)' }}>Retry thumbnail</span>
+            </div>
           ) : (
             <img
               className="image-card-thumb"
@@ -215,6 +252,17 @@ export const ImageCard: React.FC<ImageCardProps> = ({ image, onClick }) => {
             style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}
             onClick={(e) => e.stopPropagation()}
           >
+            {!isVideo && (
+              <Tooltip content="Reload thumbnail">
+                <Button
+                  minimal
+                  small
+                  icon="refresh"
+                  onClick={handleReloadThumb}
+                  style={{ padding: '0 4px', minHeight: '22px' }}
+                />
+              </Tooltip>
+            )}
             <Tooltip content={image.isPng ? 'Copy prompt (first prompt)' : 'Copy prompt (PNG only)'}>
               <Button
                 minimal

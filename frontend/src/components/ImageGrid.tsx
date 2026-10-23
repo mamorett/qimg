@@ -8,9 +8,10 @@ interface ImageGridProps {
   state: UrlState;
   updateState: (updates: Partial<UrlState>) => void;
   onSelectImage: (path: string) => void;
+  refreshId?: number;
 }
 
-export const ImageGrid: React.FC<ImageGridProps> = ({ state, updateState, onSelectImage }) => {
+export const ImageGrid: React.FC<ImageGridProps> = ({ state, updateState, onSelectImage, refreshId }) => {
   const {
     data,
     isLoading,
@@ -134,6 +135,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({ state, updateState, onSele
             key={`${img.path}-${idx}`}
             image={img}
             onClick={() => onSelectImage(img.path)}
+            refreshId={refreshId}
           />
         ))}
       </div>
