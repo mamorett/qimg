@@ -377,5 +377,34 @@ func TestServerHandlers(t *testing.T) {
 		if res.Header.Get("Cache-Control") == "" {
 			t.Errorf("expected Cache-Control header on thumbnail")
 		}
+		if res.Header.Get("Accept-Ranges") != "none" {
+			t.Errorf("expected Accept-Ranges: none, got %s", res.Header.Get("Accept-Ranges"))
+		}
+		etag := res.Header.Get("ETag")
+		if etag == "" {
+			t.Errorf("expected ETag header on thumbnail")
+		}
+
+		// 304 on If-None-Match
+		req, _ := http.NewRequest("GET", ts.URL+"/img/thumb/test2.jpg", nil)
+		req.Header.Set("If-None-Match", etag)
+		res304, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res304.Body.Close()
+		if res304.StatusCode != http.StatusNotModified {
+			t.Errorf("expected 304 Not Modified, got %d", res304.StatusCode)
+		}
+
+		// Force reload
+		resReload, err := http.Get(ts.URL + "/img/thumb/test2.jpg?reload=1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resReload.Body.Close()
+		if resReload.StatusCode != http.StatusOK {
+			t.Errorf("expected 200 OK on forced reload, got %d", resReload.StatusCode)
+		}
 	})
 }

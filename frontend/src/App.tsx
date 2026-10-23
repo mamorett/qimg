@@ -18,6 +18,7 @@ function MainApp() {
   const qc = useQueryClient();
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [refreshId, setRefreshId] = useState(0);
 
   const [theme, setTheme] = useState<'editorial' | 'dark-nord'>(() => {
     return (localStorage.getItem('qimg-theme') as 'editorial' | 'dark-nord') || 'editorial';
@@ -53,6 +54,7 @@ function MainApp() {
   }, [fitMode]);
 
   const handleRefresh = async () => {
+    setRefreshId((prev) => prev + 1);
     await qc.resetQueries({ queryKey: ['images'] });
     await qc.refetchQueries({ queryKey: ['images'] });
     await qc.refetchQueries({ queryKey: ['dirs'] });
@@ -109,6 +111,7 @@ function MainApp() {
               state={state}
               updateState={updateState}
               onSelectImage={(path) => updateState({ file: path })}
+              refreshId={refreshId}
             />
           )}
         </main>
