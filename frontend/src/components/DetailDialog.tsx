@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Dialog, Classes, Spinner, NonIdealState, Callout, Button, H5, Tooltip, Tag, Intent, Tabs, Tab, Collapse, Alert } from '@blueprintjs/core';
 import ReactMarkdown from 'react-markdown';
 import { useImageMetadata, useDeleteImage } from '../hooks/useImages';
@@ -9,10 +9,17 @@ import { copyToClipboard } from '../utils/clipboard';
 interface DetailDialogProps {
   filePath: string | null;
   onClose: () => void;
+  onClosed?: () => void;
 }
 
-export const DetailDialog: React.FC<DetailDialogProps> = ({ filePath, onClose }) => {
-  const { data, isLoading, isError, error } = useImageMetadata(filePath);
+export const DetailDialog: React.FC<DetailDialogProps> = ({ filePath, onClose, onClosed }) => {
+  const lastFilePathRef = useRef<string | null>(filePath);
+  if (filePath) {
+    lastFilePathRef.current = filePath;
+  }
+  const activeFilePath = filePath || lastFilePathRef.current;
+
+  const { data, isLoading, isError, error } = useImageMetadata(activeFilePath);
   const deleteMutation = useDeleteImage();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [markdownFields, setMarkdownFields] = useState<Record<string, boolean>>({});
@@ -20,12 +27,12 @@ export const DetailDialog: React.FC<DetailDialogProps> = ({ filePath, onClose })
   const [activeTab, setActiveTab] = useState<'prompts' | 'raw'>('prompts');
 
   const isOpen = Boolean(filePath);
-  const fileName = filePath ? filePath.split('/').pop() : '';
-  const fullImgUrl = filePath ? `/img/full/${filePath.split('/').map(encodeURIComponent).join('/')}` : '';
+  const fileName = activeFilePath ? activeFilePath.split('/').pop() : '';
+  const fullImgUrl = activeFilePath ? `/img/full/${activeFilePath.split('/').map(encodeURIComponent).join('/')}` : '';
 
   const handleDeleteConfirm = () => {
-    if (!filePath) return;
-    deleteMutation.mutate(filePath, {
+    if (!activeFilePath) return;
+    deleteMutation.mutate(activeFilePath, {
       onSuccess: () => {
         setIsDeleteConfirmOpen(false);
         onClose();
@@ -53,7 +60,7 @@ export const DetailDialog: React.FC<DetailDialogProps> = ({ filePath, onClose })
 
   const chunkKeys = Object.keys(data?.png?.chunks || {});
 
-  const isVideo = filePath ? filePath.toLowerCase().endsWith('.mp4') : false;
+  const isVideo = activeFilePath ? activeFilePath.toLowerCase().endsWith('.mp4') : false;
 
   const handleDownloadFile = () => {
     if (!fullImgUrl) return;
@@ -70,6 +77,9 @@ export const DetailDialog: React.FC<DetailDialogProps> = ({ filePath, onClose })
       <Dialog
         isOpen={isOpen}
         onClose={onClose}
+        onClosing={onClosed}
+        onClosed={onClosed}
+        shouldReturnFocusOnClose={false}
         title={fileName || 'Image Details'}
         icon={isVideo ? 'video' : 'media'}
         style={{ width: '95%', maxWidth: '1200px', backgroundColor: 'var(--bg-primary)' }}
