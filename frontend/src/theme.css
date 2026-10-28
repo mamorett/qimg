@@ -57,6 +57,8 @@ body {
 /* App layout */
 .app-layout {
   display: flex;
+  flex: 1;
+  min-height: 0;
   height: calc(100vh - 50px);
   background-color: var(--bg-primary);
 }

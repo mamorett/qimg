@@ -12,6 +12,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
+      shouldReturnFocusOnClose={false}
       title="About qimg"
       icon="help"
       style={{ width: '90%', maxWidth: '500px' }}
