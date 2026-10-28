@@ -299,7 +299,6 @@ export const ImageCard: React.FC<ImageCardProps> = ({ image, onClick, refreshId 
       {isDeleteConfirmOpen && (
         <Alert
           isOpen={isDeleteConfirmOpen}
-          shouldReturnFocusOnClose={false}
           cancelButtonText="Cancel"
           confirmButtonText="Delete"
           icon="trash"

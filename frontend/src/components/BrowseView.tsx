@@ -446,7 +446,6 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ state, updateState }) =>
 
       <Alert
         isOpen={isDeleteConfirmOpen}
-        shouldReturnFocusOnClose={false}
         cancelButtonText="Cancel"
         confirmButtonText="Delete"
         icon="trash"

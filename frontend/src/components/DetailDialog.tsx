@@ -454,7 +454,6 @@ export const DetailDialog: React.FC<DetailDialogProps> = ({ filePath, onClose, o
 
       <Alert
         isOpen={isDeleteConfirmOpen}
-        shouldReturnFocusOnClose={false}
         cancelButtonText="Cancel"
         confirmButtonText="Delete"
         icon="trash"
