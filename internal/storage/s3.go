@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -242,24 +243,10 @@ func (s *S3Storage) ListDirs(dir string, recursive bool) ([]DirItem, error) {
 					continue
 				}
 
-				dirKey := path.Dir(obj.Key)
-				var targetPath string
-				if s.config.Bucket == "" {
-					if dirKey == "." {
-						targetPath = b
-					} else {
-						targetPath = b + "/" + dirKey
-					}
-				} else {
-					targetPath = dirKey
-				}
-
-				if _, exists := dirImageCounts[targetPath]; !exists {
-					dirImageCounts[targetPath] = 0
-					dirOrder = append(dirOrder, targetPath)
-				}
-				dirImageCounts[targetPath]++
+				addS3ObjectToDirCounts(b, s.config.Bucket == "", obj.Key, dirImageCounts, &dirOrder)
 			}
+
+			sortDirPaths(dirOrder)
 
 			for _, dPath := range dirOrder {
 				name := dPath
@@ -422,5 +409,65 @@ func (s *S3Storage) ListBuckets() ([]string, error) {
 		buckets = append(buckets, b.Name)
 	}
 	return buckets, nil
+}
+
+// addS3ObjectToDirCounts records an S3 media object's directory and ensures all
+// ancestor directories exist in dirImageCounts and dirOrder so the sidebar tree
+// never orphans a subdirectory under an unrelated parent.
+func addS3ObjectToDirCounts(bucket string, multiBucket bool, key string, dirImageCounts map[string]int, dirOrder *[]string) {
+	cleanKey := strings.TrimPrefix(path.Clean(key), "/")
+	dirKey := path.Dir(cleanKey)
+
+	toTargetPath := func(d string) string {
+		if !multiBucket {
+			return d
+		}
+		if d == "." {
+			return bucket
+		}
+		return bucket + "/" + d
+	}
+
+	targetPath := toTargetPath(dirKey)
+	if dirKey != "." {
+		for cur := dirKey; cur != "." && cur != "/"; cur = path.Dir(cur) {
+			ancPath := toTargetPath(cur)
+			if _, exists := dirImageCounts[ancPath]; !exists {
+				dirImageCounts[ancPath] = 0
+				*dirOrder = append(*dirOrder, ancPath)
+			}
+		}
+	} else if _, exists := dirImageCounts[targetPath]; !exists {
+		dirImageCounts[targetPath] = 0
+		*dirOrder = append(*dirOrder, targetPath)
+	}
+
+	dirImageCounts[targetPath]++
+}
+
+// sortDirPaths sorts directory paths in pre-order tree order by comparing
+// individual path segments so children always follow their parent and never
+// interleave with sibling directories that share a name prefix (e.g. "dir" vs "dir-2").
+func sortDirPaths(paths []string) {
+	sort.Slice(paths, func(i, j int) bool {
+		a, b := paths[i], paths[j]
+		if a == b {
+			return false
+		}
+		if a == "." {
+			return true
+		}
+		if b == "." {
+			return false
+		}
+		partsA := strings.Split(a, "/")
+		partsB := strings.Split(b, "/")
+		for k := 0; k < len(partsA) && k < len(partsB); k++ {
+			if partsA[k] != partsB[k] {
+				return partsA[k] < partsB[k]
+			}
+		}
+		return len(partsA) < len(partsB)
+	})
 }
 
